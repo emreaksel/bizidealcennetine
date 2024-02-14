@@ -1,0 +1,13 @@
+imza şifresi 0605..
+
+sha256 kodunu almak için
+keytool -list -v -keystore C:\Users\WARD-V2\Desktop\imza.jks -alias key0 -storepass şifregir -keypass şifregir
+
+
+
+
+flutter oluşturduğu apk imzalamak için
+jarsigner -verbose -keystore C:\Users\WARD-V2\AndroidStudioProjects\bizidealcennetine\android\imza.jks -keypass şifregir -storepass şifregir app-release.apk key0
+
+APK Signature Scheme v2'yi Kullanın:
+jarsigner -verbose -keystore C:\Users\WARD-V2\AndroidStudioProjects\bizidealcennetine\android\imza.jks -sigalg SHA256withRSA -digestalg SHA-256 -storepass şifregir -keypass şifregir app-release.apk key0
