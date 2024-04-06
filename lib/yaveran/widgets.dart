@@ -1,13 +1,10 @@
 
-import 'dart:math';
 
 import 'package:bizidealcennetine/main.dart';
 import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'AudioService.dart';
 import 'Notifier.dart';
@@ -288,7 +285,7 @@ class AlternativeListButton extends StatelessWidget {
           print("CLICK ustEkranAktifIndex = 2;");
         },
         child: SvgPicture.asset(
-          'assets/icons/playlist1.svg',
+          'assets/icons/playlist.svg',
           width: calculateIconSize(context)*0.8,
           height: calculateIconSize(context)*0.8,
           //color: Colors.red, // İstenilen rengi belirtin
@@ -344,17 +341,18 @@ class LikeButton extends StatelessWidget {
     
 
     return Opacity(
-      opacity: 0.0, // 0.0, yani tamamen şeffaf olacak şekilde ayarlanmıştır
+      opacity: 1.0, // 0.0, yani tamamen şeffaf olacak şekilde ayarlanmıştır
       child: IconButton(
-        icon: const Icon(
-          FontAwesomeIcons.heart,
-          color: Colors.white,
-        ),
-        iconSize: calculateIconSize(context),
-        onPressed: () {
-          // Butona tıklandığında yapılacak işlemler
-        },
-      ),
+          icon: SvgPicture.asset(
+            'assets/icons/kalp_duru.svg',
+            width: calculateIconSize(context),
+            height: calculateIconSize(context),
+            //color: Colors.red, // İstenilen rengi belirtin
+          ),
+          iconSize: calculateIconSize(context),
+          onPressed: () {
+            //_audioService.repeat();
+          }),
     );
   }
 }
