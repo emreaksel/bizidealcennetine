@@ -1,9 +1,30 @@
 workflows:
-    sample-workflow:
-        name: Codemagic Sample Workflow
-        max_build_duration: 120
-        instance_type: mac_mini_m2
-        scripts:
-            - name: Build iOS app
-              script: |
-                flutter build ios --release
+  ios-release:
+    name: iOS Release Build
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      xcode: latest
+      vars:
+        BUNDLE_ID: "com.ea.atesiask"
+      groups:
+        - signing_credentials  # Sertifika ve profil buradan gelir
+
+    scripts:
+      - name: Flutter temizleme
+        script: |
+          flutter clean
+          flutter pub get
+      - name: Build iOS app
+        script: |
+          flutter build ios --release --no-codesign
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - flutter_drive.log
+
+    # publishing:
+    #   app_store_connect:
+    #     api_key: $APP_STORE_CONNECT_PRIVATE_KEY
