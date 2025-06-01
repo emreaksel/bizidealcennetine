@@ -10,7 +10,7 @@ workflows:
       vars:
         BUNDLE_ID: "com.ea.atesiask"
       groups:
-        - signing_credentials  # Sertifika ve profil buradan gelir
+        - signing_credentials  # Codemagic panelinde tanımlı sertifika ve profil grubu
 
     scripts:
       - name: Flutter temizleme
@@ -22,8 +22,15 @@ workflows:
           xcode-project use-profiles
       - name: Build iOS app
         script: |
-          flutter build ios --release
-          xcode-project build-ipa --workspace ios/Runner.xcworkspace --scheme Runner
+          flutter build ios --release --no-codesign
+          xcode-project build-ipa \
+            --workspace ios/Runner.xcworkspace \
+            --scheme Runner \
+            --config Release \
+            --export-options-plist ios/exportOptions.plist
+      - name: Verify code signing
+        script: |
+          codesign -v build/ios/ipa/*.ipa
 
     artifacts:
       - build/ios/ipa/*.ipa
