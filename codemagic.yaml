@@ -17,9 +17,13 @@ workflows:
         script: |
           flutter clean
           flutter pub get
+      - name: Configure code signing
+        script: |
+          xcode-project use-profiles
       - name: Build iOS app
         script: |
           flutter build ios --release
+          xcode-project build-ipa --workspace ios/Runner.xcworkspace --scheme Runner
 
     artifacts:
       - build/ios/ipa/*.ipa
