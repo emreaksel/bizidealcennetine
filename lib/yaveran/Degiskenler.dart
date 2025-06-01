@@ -7,13 +7,13 @@ class Degiskenler {
 
   static var hazirlaniyor=false;
   //String kaynakYolu=".";
-  static var kaynakYolu="https://kardelendergisi.com/atesiask";
-  static var alternatif_kaynakYolu="https://raw.githubusercontent.com/benolanben/atesiask/main/kaynak";
+  static var kaynakYolu="https://raw.githubusercontent.com/benolanben/atesiask/main/";
 
   //static var kaynakYolu="https://raw.githubusercontent.com/emreaksel/atesiask/main/flutter";
   static var parcaIndex=-1;
   static var hediyeninIndex=-1;
   static var liste_link="baska";
+  static var liste_adi="baska";
 
   static var currentEpigramNotifier = ValueNotifier<String>('...');
   static var currentImageNotifier = ValueNotifier<String>('');
