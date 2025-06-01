@@ -289,7 +289,7 @@ class AudioService {
         androidNotificationChannelId: 'com.ea.bizidealcennetine.channel.audio',
         androidNotificationChannelName: 'Aşk Olsun',
         androidNotificationOngoing: true,
-        androidStopForegroundOnPause: false,
+        androidStopForegroundOnPause: true,
       ),
     );
   }
