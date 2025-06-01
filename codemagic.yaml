@@ -1,40 +1,44 @@
 workflows:
   ios-release:
     name: iOS Release Build
-    max_build_duration: 120
     instance_type: mac_mini_m2
-
     environment:
       flutter: stable
       xcode: latest
       vars:
         BUNDLE_ID: "com.ea.atesiask"
       groups:
-        - signing_credentials  # Codemagic panelinde tanımlı sertifika ve profil grubu
+        - signing_credentials
 
     scripts:
-      - name: Flutter temizleme
+      - name: Clean build
         script: |
           flutter clean
-          flutter pub get
-      - name: Configure code signing
+          rm -rf ios/Pods
+          rm -rf ios/.symlinks
+          rm ios/Podfile.lock
+
+      - name: Install pods
         script: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: Set up signing
+        script: |
+          sed -i '' 's/RunnerDebug\.entitlements/Runner\.entitlements/g' ios/Runner.xcodeproj/project.pbxproj
           xcode-project use-profiles
+
       - name: Build iOS app
         script: |
           flutter build ios --release --no-codesign
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
             --scheme Runner \
-            --config Release \
             --export-options-plist ios/exportOptions.plist
-      - name: Verify code signing
-        script: |
-          codesign -v build/ios/ipa/*.ipa
 
     artifacts:
       - build/ios/ipa/*.ipa
-      - flutter_drive.log
 
     # publishing:
     #   app_store_connect:
