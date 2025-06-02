@@ -7,6 +7,8 @@ workflows:
       xcode: latest
       vars:
         BUNDLE_ID: "com.ea.atesiask"
+        DEVELOPMENT_TEAM: "76J8JGV82N"
+        PROVISIONING_PROFILE: "Provisioning Profile"
       groups:
         - signing_credentials
 
@@ -26,17 +28,10 @@ workflows:
           pod install --repo-update
           cd ..
 
-      - name: Verify entitlements
-        script: |
-          # Ensure entitlements contain Associated Domains
-          if ! grep -q "associated-domains" ios/Runner/Runner.entitlements; then
-            echo 'Adding Associated Domains to entitlements'
-            /usr/libexec/PlistBuddy -c "Add :com.apple.developer.associated-domains array" ios/Runner/Runner.entitlements
-            /usr/libexec/PlistBuddy -c "Add :com.apple.developer.associated-domains:0 string 'applinks:example.com'" ios/Runner/Runner.entitlements
-          fi
-
       - name: Configure signing
         script: |
+          /usr/libexec/PlistBuddy -c "Set :PROVISIONING_PROFILE_SPECIFIER 'Provisioning Profile'" ios/Runner.xcodeproj/project.pbxproj
+          /usr/libexec/PlistBuddy -c "Set :CODE_SIGN_STYLE Manual" ios/Runner.xcodeproj/project.pbxproj
           xcode-project use-profiles
 
       - name: Build IPA
