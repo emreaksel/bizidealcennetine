@@ -28,23 +28,15 @@ workflows:
           pod install --repo-update
           cd ..
 
-      - name: Configure signing
-        script: |
-          /usr/libexec/PlistBuddy -c "Set :PROVISIONING_PROFILE_SPECIFIER 'Provisioning Profile'" ios/Runner.xcodeproj/project.pbxproj
-          /usr/libexec/PlistBuddy -c "Set :CODE_SIGN_STYLE Manual" ios/Runner.xcodeproj/project.pbxproj
-          # xcode-project use-profiles komutunu kaldırdık
-
       - name: Build IPA
         script: |
           flutter build ios --release --no-codesign
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
             --scheme Runner \
-            --export-options-plist ios/exportOptions.plist
+            --export-options-plist ios/exportOptions.plist \
+            --config "PROVISIONING_PROFILE_SPECIFIER=Provisioning Profile" \
+            --config "CODE_SIGN_STYLE=Manual"
 
     artifacts:
       - build/ios/ipa/*.ipa
-
-    # publishing:
-    #   app_store_connect:
-    #     api_key: $APP_STORE_CONNECT_PRIVATE_KEY
