@@ -199,18 +199,24 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> skipToNext() async {
-    bool wasPlaying = _player!
-        .playing; // diğer cihazlarla çalınıyorsa önlem için öncekii durum kaydediliyor.
+    bool wasPlaying = _player!.playing;
     await _player!.seekToNext();
-    if (wasPlaying) await _player!.play(); // Önceden çalıyorsa devam et
+
+    if (wasPlaying) {
+      await Future.delayed(const Duration(milliseconds: 500)); // ms gecikme
+      await _player!.play();
+    }
   }
 
   @override
   Future<void> skipToPrevious() async {
-    bool wasPlaying = _player!
-        .playing; // diğer cihazlarla çalınıyorsa önlem için öncekii durum kaydediliyor.
+    bool wasPlaying = _player!.playing;
     await _player!.seekToPrevious();
-    if (wasPlaying) await _player!.play();
+
+    if (wasPlaying) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _player!.play();
+    }
   }
 
   @override

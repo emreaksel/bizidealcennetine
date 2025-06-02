@@ -18,6 +18,10 @@ workflows:
           rm -rf ios/.symlinks
           rm ios/Podfile.lock
 
+      - name: Patch Flutter build script
+        script: |
+          sed -i '' 's/!context.usingCocoapods/context.usingCocoapods != null \&\& !context.usingCocoapods/g' "$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.dart"
+
       - name: Install pods
         script: |
           cd ios
@@ -26,6 +30,7 @@ workflows:
 
       - name: Set up signing
         script: |
+          # Ensure correct entitlements are used
           sed -i '' 's/RunnerDebug\.entitlements/Runner\.entitlements/g' ios/Runner.xcodeproj/project.pbxproj
           xcode-project use-profiles
 
