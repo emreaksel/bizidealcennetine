@@ -31,12 +31,20 @@ workflows:
       - name: Build IPA
         script: |
           flutter build ios --release --no-codesign
-          xcode-project build-ipa \
-            --workspace ios/Runner.xcworkspace \
-            --scheme Runner \
-            --export-options-plist ios/exportOptions.plist \
-            --config "PROVISIONING_PROFILE_SPECIFIER=Provisioning Profile" \
-            --config "CODE_SIGN_STYLE=Manual"
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath /Users/builder/clone/build/ios/xcarchive/Runner.xcarchive \
+            -destination generic/platform=iOS \
+            -archiveFlags "-UseModernBuildSystem=0" \
+            PROVISIONING_PROFILE_SPECIFIER="Provisioning Profile" \
+            CODE_SIGN_STYLE="Manual" \
+            DEVELOPMENT_TEAM="76J8JGV82N" \
+            COMPILER_INDEX_STORE_ENABLE=NO
+          xcodebuild -exportArchive \
+            -archivePath /Users/builder/clone/build/ios/xcarchive/Runner.xcarchive \
+            -exportPath /Users/builder/clone/build/ios/ipa \
+            -exportOptionsPlist ios/exportOptions.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
