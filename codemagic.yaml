@@ -32,7 +32,7 @@ workflows:
         script: |
           /usr/libexec/PlistBuddy -c "Set :PROVISIONING_PROFILE_SPECIFIER 'Provisioning Profile'" ios/Runner.xcodeproj/project.pbxproj
           /usr/libexec/PlistBuddy -c "Set :CODE_SIGN_STYLE Manual" ios/Runner.xcodeproj/project.pbxproj
-          xcode-project use-profiles
+          # xcode-project use-profiles komutunu kaldırdık
 
       - name: Build IPA
         script: |
