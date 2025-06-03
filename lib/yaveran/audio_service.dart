@@ -12,8 +12,7 @@ import 'package:audio_session/audio_session.dart';
 /// Audio service handler sınıfı
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   static AudioPlayer? _player;
-  bool _wasPlayingBeforeInterruption =
-      false; // Ses kesintisi öncesi oynatma durumu
+  bool _wasPlayingBeforeInterruption = false;
 
   MyAudioHandler() {
     _init();
@@ -22,22 +21,17 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> _init() async {
     _player = AudioPlayer();
 
-    // Audio session ayarları
-    // Bu, Android ve iOS için gerekli ses odaklama ve kesinti yönetimini sağlar
-    // Başka uygulamalarla çakışmayı önlemek için veya telefon görüşmesi sırasında müziği duraklatmak için
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.music());
-    // Audio focus değişikliklerini dinle
+
     session.interruptionEventStream.listen((event) async {
       if (event.begin) {
-        // TÜM kesinti tiplerinde çalışır (pause, duck, unknown)
         _wasPlayingBeforeInterruption = _player!.playing;
-        await _player!.pause(); // ASENKRON DURAKLATMA
+        await _player!.pause();
       } else {
-        // Kesinti bittiğinde
         if (_wasPlayingBeforeInterruption) {
-          await Future.delayed(const Duration(seconds: 1)); // 1 SANİYE BEKLE
-          await _player!.play(); // ASENKRON OYNATMA
+          await Future.delayed(const Duration(seconds: 1));
+          await _player!.play();
         }
         _wasPlayingBeforeInterruption = false;
       }
@@ -50,14 +44,14 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _player!.positionStream.listen((position) {
       playbackState.add(playbackState.value.copyWith(updatePosition: position));
 
-      // ProgressNotifier'ı güncelle (EK)
+      // ProgressNotifier'ı güncelle
       AudioService.progressNotifier.value = ProgressBarState(
         current: position,
         buffered: _player!.bufferedPosition,
         total: _player!.duration ?? Duration.zero,
       );
     });
-    // MyAudioHandler sınıfına ekleme:
+
     _player!.bufferedPositionStream.listen((bufferedPosition) {
       final currentState = AudioService.progressNotifier.value;
       AudioService.progressNotifier.value = ProgressBarState(
@@ -66,8 +60,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         total: currentState.total,
       );
     });
-    // Duration stream'i dinle
-    // MyAudioHandler sınıfındaki durationStream dinleyicisi:
+
+    // Duration stream'i dinle - SADECE BU KISIM DEĞİŞTİ
     _player!.durationStream.listen((duration) {
       final newState = AudioService.progressNotifier.value;
       AudioService.progressNotifier.value = ProgressBarState(
@@ -75,6 +69,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         buffered: newState.buffered,
         total: duration ?? Duration.zero,
       );
+
+      // MediaItem'ı duration ile güncelle - BU SATIR EKLENDİ
+      if (duration != null && mediaItem.value != null) {
+        mediaItem.add(mediaItem.value!.copyWith(duration: duration));
+      }
     });
 
     // Current index değişikliklerini dinle
@@ -85,21 +84,17 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         mediaItem.add(queue.value[index]);
         AudioService.setCurrentTrack(index);
 
-        // UI SUPPORT ÇAĞRISI - ŞARKI DEĞİŞTİĞİNDE
-        // UI güncellemeleri için kısa gecikme
         await Future.delayed(const Duration(milliseconds: 100));
         UI_support.changeImageAndEpigram();
       }
     });
 
-    // Loop mode değişikliklerini dinle
     _player!.loopModeStream.listen((loopMode) {
       playbackState.add(playbackState.value.copyWith(
         repeatMode: _convertLoopMode(loopMode),
       ));
     });
 
-    // Shuffle mode değişikliklerini dinle
     _player!.shuffleModeEnabledStream.listen((shuffleEnabled) {
       playbackState.add(playbackState.value.copyWith(
         shuffleMode: shuffleEnabled
@@ -109,7 +104,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       AudioService.isShuffleModeEnabledNotifier.value = shuffleEnabled;
     });
 
-    // Başlangıçta shuffle'ı aktif et
     await _player!.setShuffleModeEnabled(true);
   }
 
@@ -149,7 +143,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       queueIndex: _player!.currentIndex,
     ));
 
-    // AudioService notifier'larını güncelle
     if (processingState == AudioProcessingState.loading ||
         processingState == AudioProcessingState.buffering) {
       AudioService.playButtonNotifier.value = ButtonState.loading;
@@ -187,6 +180,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> stop() async {
+    playbackState.add(playbackState.value.copyWith(
+      playing: false,
+      processingState: AudioProcessingState.idle, // Veya .completed
+    ));
+    mediaItem.add(null);
     await _player!.stop();
     await super.stop();
   }
@@ -194,29 +192,20 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> seek(Duration position) async {
     await _player!.seek(position);
-    _broadcastState(_player!.playbackEvent);
   }
 
   @override
   Future<void> skipToNext() async {
-    bool wasPlaying = _player!.playing;
     await _player!.seekToNext();
-
-    if (wasPlaying) {
-      await Future.delayed(const Duration(milliseconds: 500)); // ms gecikme
-      await _player!.play();
-    }
+    await Future.delayed(const Duration(milliseconds: 700));
+    await _player!.play();
   }
 
   @override
   Future<void> skipToPrevious() async {
-    bool wasPlaying = _player!.playing;
     await _player!.seekToPrevious();
-
-    if (wasPlaying) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      await _player!.play();
-    }
+    await Future.delayed(const Duration(milliseconds: 700));
+    await _player!.play();
   }
 
   @override
@@ -273,7 +262,6 @@ class AudioService {
   static String seslendiren = "...";
   static List<MediaItem> parca_listesi = [];
 
-  /// Oynatma durumunu bildiren ValueNotifier
   static final progressNotifier = ProgressNotifier();
   static final currentSongTitleNotifier = ValueNotifier<String>('...');
   static final currentSongSubTitleNotifier = ValueNotifier<String>('...');
@@ -285,7 +273,6 @@ class AudioService {
   static final isLastSongNotifier = ValueNotifier<bool>(true);
   static final isShuffleModeEnabledNotifier = ValueNotifier<bool>(false);
 
-  /// AudioService'i başlatır
   static Future<void> init() async {
     _audioHandler = MyAudioHandler();
 
@@ -300,7 +287,6 @@ class AudioService {
     );
   }
 
-  /// Çalma listesini ayarlar
   static Future<void> setPlaylist(List<AudioSource> playlist) async {
     if (_audioHandler == null) {
       throw Exception('AudioService başlatılmadı');
@@ -314,7 +300,6 @@ class AudioService {
       throw Exception('Desteklenmeyen AudioSource tipi');
     }).toList();
 
-    // Queue'yu güncelle
     await _audioHandler!.updateQueue(mediaItems);
 
     final Random random = Random();
@@ -326,13 +311,11 @@ class AudioService {
     );
   }
 
-  /// Belirtilen ID'ye sahip parçayı çalar
   static Future<void> playAtId(int id) async {
     if (_audioHandler == null) {
       throw Exception('AudioService başlatılmadı');
     }
 
-    // Çalma listesindeki parçanın indeksini bul
     int index = _audioHandler!.player!.sequence!.indexWhere(
       (source) {
         if (source is UriAudioSource) {
@@ -351,7 +334,6 @@ class AudioService {
   }
 
   static Future<void> addTrackToPlaylist(adi, ses, yol, sira, oynat) async {
-    // 1. Yeni parçayı songListNotifier değişkenine ekle
     Degiskenler.songListNotifier.value.add(
         {'sira_no': sira, 'parca_adi': adi, 'seslendiren': ses, 'url': yol});
 
@@ -369,20 +351,16 @@ class AudioService {
     );
 
     try {
-      // Mevcut çalma listesini al
       var currentSources =
           (_audioHandler!.player!.audioSource as ConcatenatingAudioSource)
               .children;
 
-      // Yeni parçayı çalma listesine ekle
       currentSources.add(newSource);
 
-      // Queue'yu güncelle
       final currentQueue = List<MediaItem>.from(parca_listesi);
       currentQueue.add(mediaItem);
       await _audioHandler!.updateQueue(currentQueue);
 
-      // Yeni çalma listesini ayarla
       await _audioHandler!.setAudioSource(
         ConcatenatingAudioSource(children: currentSources),
         initialIndex: currentSources.length - 1,
@@ -395,10 +373,8 @@ class AudioService {
     if (oynat) play();
   }
 
-  /// Mevcut parça bilgilerini ayarlar
   static setCurrentTrack(index) {
     if (index != null) {
-      // degiskenler.listDinle'den bilgileri al
       parca_adi = Degiskenler().listDinle[index]["parca_adi"];
       seslendiren = Degiskenler().listDinle[index]["seslendiren"];
       currentSongTitleNotifier.value = parca_adi;
@@ -407,17 +383,14 @@ class AudioService {
     }
   }
 
-  /// Müziği çalar
   static Future<void> play() async {
     await _audioHandler!.play();
   }
 
-  /// Müziği duraklatır
   static Future<void> pause() async {
     await _audioHandler!.pause();
   }
 
-  /// Play/Pause toggle
   static Future<void> playPause() async {
     if (_audioHandler!.player!.playing) {
       await pause();
@@ -426,22 +399,18 @@ class AudioService {
     }
   }
 
-  /// Sonraki parçaya geç
   static Future<void> next() async {
     await _audioHandler!.skipToNext();
   }
 
-  /// Önceki parçaya geç
   static Future<void> previous() async {
     await _audioHandler!.skipToPrevious();
   }
 
-  /// Belirtilen pozisyona git
   static Future<void> seek(Duration position) async {
     await _audioHandler!.seek(position);
   }
 
-  /// Repeat modu değiştir
   static Future<void> repeat() async {
     if (repeatButtonNotifier.value == RepeatState.on) {
       await _audioHandler!.setRepeatMode(AudioServiceRepeatMode.all);
@@ -450,7 +419,6 @@ class AudioService {
     }
   }
 
-  /// Shuffle modu değiştir
   static Future<void> toggleShuffle() async {
     final shuffleEnabled = _audioHandler!.player!.shuffleModeEnabled;
     await _audioHandler!.setShuffleMode(shuffleEnabled
@@ -458,54 +426,35 @@ class AudioService {
         : AudioServiceShuffleMode.all);
   }
 
-  /// Mevcut parça adını döndür
   static String getCurrentTrackName() {
     print("Dinleniyor: $parca_adi");
     return parca_adi;
   }
 
-  /// Mevcut sanatçı adını döndür
   static String getCurrentTrackArtist() {
     print("Dinleniyor: $seslendiren");
     return seslendiren;
   }
 
-  /// AudioService'i temizler
   static Future<void> dispose() async {
     await _audioHandler?.stop();
     _audioHandler = null;
   }
 
-  /// Müziği durdurur
   static Future<void> stop() async {
     await _audioHandler!.stop();
   }
 
-  /// AudioHandler'a erişim
   static MyAudioHandler? get audioHandler => _audioHandler;
-
-  /// Player'a erişim
   static AudioPlayer? get player => _audioHandler?.player;
-
-  /// Mevcut çalma durumu
   static bool get isPlaying => _audioHandler?.player?.playing ?? false;
-
-  /// Mevcut pozisyon
   static Duration get currentPosition =>
       _audioHandler?.player?.position ?? Duration.zero;
-
-  /// Toplam süre
   static Duration get totalDuration =>
       _audioHandler?.player?.duration ?? Duration.zero;
-
-  /// Mevcut parça indeksi
   static int? get currentIndex => _audioHandler?.player?.currentIndex;
-
-  /// Shuffle modu aktif mi
   static bool get isShuffleEnabled =>
       _audioHandler?.player?.shuffleModeEnabled ?? false;
-
-  /// Loop modu
   static LoopMode get loopMode =>
       _audioHandler?.player?.loopMode ?? LoopMode.off;
 }

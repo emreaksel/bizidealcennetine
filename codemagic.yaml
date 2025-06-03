@@ -8,7 +8,7 @@ workflows:
       vars:
         BUNDLE_ID: "com.ea.atesiask"
         DEVELOPMENT_TEAM: "76J8JGV82N"
-        PROVISIONING_PROFILE: "Provisioning Profile"
+        PROVISIONING_PROFILE_SPECIFIER: "Provisioning Profile"
       groups:
         - signing_credentials
 
@@ -18,7 +18,7 @@ workflows:
           flutter clean
           rm -rf ios/Pods
           rm -rf ios/.symlinks
-          rm ios/Podfile.lock
+          rm -f ios/Podfile.lock
           rm -rf ~/Library/Developer/Xcode/DerivedData/*
 
       - name: Install dependencies
@@ -28,23 +28,37 @@ workflows:
           pod install --repo-update
           cd ..
 
-      - name: Build IPA
+      - name: Create archive directory
+        script: |
+          mkdir -p /Users/builder/clone/build/ios/xcarchive
+          mkdir -p /Users/builder/clone/build/ios/ipa
+
+      - name: Build Flutter iOS
         script: |
           flutter build ios --release --no-codesign
+
+      - name: Archive iOS App
+        script: |
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -archivePath /Users/builder/clone/build/ios/xcarchive/Runner.xcarchive \
             -destination generic/platform=iOS \
-            -archiveFlags "-UseModernBuildSystem=0" \
-            PROVISIONING_PROFILE_SPECIFIER="Provisioning Profile" \
-            CODE_SIGN_STYLE="Manual" \
-            DEVELOPMENT_TEAM="76J8JGV82N" \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            -archivePath /Users/builder/clone/build/ios/xcarchive/Runner.xcarchive \
+            archive \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            -allowProvisioningUpdates
+
+      - name: Export IPA
+        script: |
           xcodebuild -exportArchive \
             -archivePath /Users/builder/clone/build/ios/xcarchive/Runner.xcarchive \
             -exportPath /Users/builder/clone/build/ios/ipa \
-            -exportOptionsPlist ios/exportOptions.plist
+            -exportOptionsPlist ios/exportOptions.plist \
+            -allowProvisioningUpdates
 
     artifacts:
       - build/ios/ipa/*.ipa
