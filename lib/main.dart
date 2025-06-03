@@ -401,6 +401,7 @@ class LoadingWidget extends StatelessWidget {
       ),
     );
   }
+
 }
 
 class KenBurnsViewWidget extends StatefulWidget {
@@ -2202,7 +2203,7 @@ class _SplashScreenWidgetState extends State<SplashScreenWidget>
                       borderRadius: BorderRadius.circular(20),
                       child: Image.asset(
                         'assets/images/atesiask.jpg',
-                        width: MediaQuery.of(context).size.width * 0.83,
+                        width: MediaQuery.of(context).size.width * 0.81,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
