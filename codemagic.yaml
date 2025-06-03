@@ -13,19 +13,31 @@ workflows:
         - signing_credentials
 
     scripts:
+      - name: Set up environment
+        script: |
+          # Flutter ve Xcode versiyonlarını kontrol et
+          flutter --version
+          xcodebuild -version
+          
       - name: Clean workspace
         script: |
           flutter clean
           rm -rf ios/Pods
           rm -rf ios/.symlinks
           rm -f ios/Podfile.lock
+          rm -rf build/
           rm -rf ~/Library/Developer/Xcode/DerivedData/*
 
       - name: Install dependencies
         script: |
           flutter pub get
+
+      - name: Setup iOS dependencies
+        script: |
           cd ios
-          pod install --repo-update
+          # Podfile'ı kontrol et ve gerekirse güncelle
+          pod repo update
+          pod install --verbose
           cd ..
 
       - name: Create archive directory
@@ -35,7 +47,17 @@ workflows:
 
       - name: Build Flutter iOS
         script: |
-          flutter build ios --release --no-codesign
+          # iOS projesi konfigürasyonunu kontrol et
+          cd ios
+          pod install --repo-update
+          cd ..
+          
+          # Flutter cache'ini temizle
+          flutter clean
+          flutter pub get
+          
+          # iOS build'ini debug bilgileri ile yap
+          flutter build ios --release --no-codesign --verbose
 
       - name: Archive iOS App
         script: |
