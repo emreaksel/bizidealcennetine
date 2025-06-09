@@ -123,11 +123,14 @@ Future<void> initUniLinks() async {
 
 void handleLink(String? link) {
   if (link != null) {
-    Degiskenler.currentNoticeNotifier.value = link.toString();
+    link =
+        link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
+    print("replacedLink $link");
+
+    Degiskenler.currentNoticeNotifier.value = link;
     Degiskenler.showDialogNotifier.value = true;
   }
 }
-
 
 class MyApp extends StatefulWidget {
   @override
@@ -188,7 +191,6 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
 
 class MyApp_old extends StatelessWidget {
   @override
@@ -401,7 +403,6 @@ class LoadingWidget extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class KenBurnsViewWidget extends StatefulWidget {
@@ -468,7 +469,6 @@ class AkanYazi extends StatelessWidget {
       padding: EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.5),
-        
       ),
       child: ValueListenableBuilder<String>(
         valueListenable: Degiskenler.currentEpigramNotifier,
@@ -1022,7 +1022,7 @@ class CustomDialog extends StatelessWidget {
                 noticeText,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: calculateFontSize(context) * 0.8, 
+                  fontSize: calculateFontSize(context) * 0.8,
                 ),
                 textAlign: TextAlign.center, // Metni ortala (isteğe bağlı)
               ),
@@ -1065,7 +1065,7 @@ void hediye_irtibat(link, id) {
     for (var item in listDinle) {
       if (item['sira_no'].toString() == id.toString()) {
         AudioService.addTrackToPlaylist(item['parca_adi'], item['seslendiren'],
-             item['url'], item['sira_no'], true);
+            item['url'], item['sira_no'], true);
         Degiskenler.hediyeninIndex = item['sira_no'];
         break;
       }
@@ -1532,7 +1532,6 @@ Future<void> fetchData_jsonDinlemeListesi(String url, String link) async {
     });
   } catch (error) {
     print("Hata oluştu: $error");
-    
   }
 }
 
@@ -1550,7 +1549,7 @@ Future<void> fetchData_jsonFotograflar(String url) async {
         } else {
           print("fotograf listesi boş.");
         }
-      } 
+      }
     });
   } catch (error) {
     print("Hata oluştu: $error");
@@ -1562,7 +1561,6 @@ Future<void> fetchData_jsonMenba(String url) async {
   try {
     final Future<Map<String, dynamic>> jsonData = compute(getirJsonData, url);
     jsonData.then((jsonData) {
-      
       int versiyon = jsonData["versiyon"];
       //print("versiyon: $versiyon");
       int dinlemeListesiID = jsonData["aktifliste"]["dinlemeListesiID"];
@@ -1632,7 +1630,6 @@ Future<void> fetchData_jsonSozler(String url) async {
     });
   } catch (error) {
     print("Hata oluştu: $error");
-    
   }
 }
 
@@ -2073,8 +2070,6 @@ class ImprovedConfettiDemo extends StatelessWidget {
  * KONFETİ SON
  */
 
-
-
 /**
  * 
  * SPLASH SCREEN WIDGET
@@ -2107,13 +2102,13 @@ class _SplashScreenWidgetState extends State<SplashScreenWidget>
   @override
   void initState() {
     super.initState();
-    
+
     // Fade animasyon controller'ı
     _fadeController = AnimationController(
       duration: widget.animationDuration,
       vsync: this,
     );
-    
+
     // Scale animasyon controller'ı
     _scaleController = AnimationController(
       duration: widget.animationDuration,
@@ -2160,7 +2155,7 @@ class _SplashScreenWidgetState extends State<SplashScreenWidget>
         widget.onComplete!();
       }
     });
-    
+
     _scaleController.animateTo(1.2, curve: Curves.easeInBack);
   }
 
@@ -2193,7 +2188,8 @@ class _SplashScreenWidgetState extends State<SplashScreenWidget>
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color.fromARGB(49, 255, 255, 255), // Alpha: 1.0 (tam opak)
+                          color: const Color.fromARGB(
+                              49, 255, 255, 255), // Alpha: 1.0 (tam opak)
                           blurRadius: 30,
                           spreadRadius: 5,
                         ),
@@ -2237,4 +2233,3 @@ class _SplashScreenWidgetState extends State<SplashScreenWidget>
  * 
  * SPLASH SCREEN WIDGET SON
  */
-
