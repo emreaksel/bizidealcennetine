@@ -77,6 +77,18 @@ class UI_support {
     }
   }
   
+  static void ekranboyut_minik(int goster) {
+    Degiskenler.ustEkranIndexNotifier.value = goster;
+    Degiskenler.altEkranBoyutNotifier.value = 17;
+    Degiskenler.ustEkranBoyutNotifier.value = 83;
+  }
+
+  static void ekranboyut_ana(int goster) {
+    Degiskenler.ustEkranIndexNotifier.value = goster;
+    Degiskenler.altEkranBoyutNotifier.value = 20;
+    Degiskenler.ustEkranBoyutNotifier.value = 80;
+  }
+  
   // Debug için - son çağrılma zamanlarını görmek istersen
   static void printLastCallTimes() {
     print("Son çağrılma zamanları:");

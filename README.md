@@ -1,6 +1,10 @@
 # bizidealcennetine
 
-A new Flutter project.
+# chrome da test için 
+flutter run -d chrome --web-browser-flag "--disable-web-security"
+
+
+
 
 ## Getting Started
 
