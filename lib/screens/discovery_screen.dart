@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../yaveran/Degiskenler.dart';
 import '../yaveran/ui_support.dart';
 import '../yaveran/logic.dart';
+import '../yaveran/app_theme.dart';
 
 class DinlemeListesiWidget extends StatefulWidget {
   @override
@@ -106,7 +107,6 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
                               ],
                             ),
                           ),
-
                           Expanded(
                             child: Center(
                               child: SingleChildScrollView(
@@ -272,9 +272,7 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
                                           ),
                                         ),
                                       ),
-
                                       SizedBox(height: 32),
-
                                       AnimatedContainer(
                                         duration: Duration(milliseconds: 300),
                                         height:
@@ -321,9 +319,7 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
                                               )
                                             : SizedBox(),
                                       ),
-
                                       SizedBox(height: 40),
-
                                       Container(
                                         width: double.infinity,
                                         height: 56,
@@ -364,7 +360,7 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
                                                     "Dinle",
                                                     style: TextStyle(
                                                       color: selectedItemId !=
-                                                               null
+                                                              null
                                                           ? theme.textColor
                                                           : theme.textColor
                                                               .withOpacity(0.5),

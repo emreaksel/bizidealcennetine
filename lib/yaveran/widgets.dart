@@ -9,6 +9,7 @@ import 'audio_video_progress_bar.dart';
 import 'dart:math' as math;
 import 'MusicApiService.dart';
 import 'ui_support.dart';
+import 'app_theme.dart';
 
 double calculateIconSize(BuildContext context) {
   double screenHeight = MediaQuery.of(context).size.height;
@@ -30,29 +31,36 @@ class PlayButton extends StatelessWidget {
     return ValueListenableBuilder<ButtonState>(
       valueListenable: AudioService.playButtonNotifier,
       builder: (_, value, __) {
+        final theme = Degiskenler.currentThemeNotifier.value;
         switch (value) {
+          case ButtonState.loading:
+            return Container(
+              width: calculateIconSize(context) * 0.8,
+              height: calculateIconSize(context) * 0.8,
+              padding: const EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: theme.accentColor,
+              ),
+            );
           case ButtonState.paused:
             return IconButton(
               icon: SvgPicture.asset(
                 'assets/icons/play.svg',
                 width: calculateIconSize(context) * 0.8,
                 height: calculateIconSize(context) * 0.8,
-                //color: Colors.red, // İstenilen rengi belirtin
               ),
-              // Dinamik ikon boyutu kullanılıyor
               onPressed: () {
                 AudioService.play();
               },
             );
-          case ButtonState.playing || ButtonState.loading:
+          case ButtonState.playing:
             return IconButton(
               icon: SvgPicture.asset(
                 'assets/icons/pause.svg',
                 width: calculateIconSize(context) * 0.8,
                 height: calculateIconSize(context) * 0.8,
-                //color: Colors.red, // İstenilen rengi belirtin
               ),
-              // Dinamik ikon boyutu kullanılıyor
               onPressed: () {
                 AudioService.pause();
               },
@@ -140,11 +148,10 @@ class SeekBar extends StatelessWidget {
             thumbColor: theme.accentColor,
             barCapShape: BarCapShape.round,
             timeLabelTextStyle: TextStyle(
-              color: theme.textColor.withOpacity(0.7), 
-              fontSize: 14, 
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5
-            ),
+                color: theme.textColor.withOpacity(0.7),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5),
             timeLabelLocation: TimeLabelLocation.sides,
             barHeight: 8.0,
             thumbRadius: 11.0,
@@ -200,27 +207,24 @@ class PreviousSongButton extends StatelessWidget {
     return ValueListenableBuilder<ButtonState>(
       valueListenable: AudioService.playButtonNotifier,
       builder: (_, value, __) {
-        switch (value) {
-          case ButtonState.loading:
-            return Container(
-              margin: const EdgeInsets.all(8.0),
-              width: 32.0,
-              height: 32.0,
-              /*child: const CircularProgressIndicator(),*/
-            );
-          case ButtonState.paused || ButtonState.playing:
-            return IconButton(
-                icon: SvgPicture.asset(
-                  'assets/icons/previous.svg',
-                  width: calculateIconSize(context),
-                  height: calculateIconSize(context),
-                  //color: Colors.red, // İstenilen rengi belirtin
-                ),
-                iconSize: calculateIconSize(context),
-                onPressed: () {
-                  AudioService.previous();
-                });
-        }
+        return IconButton(
+            icon: SvgPicture.asset(
+              'assets/icons/previous.svg',
+              width: calculateIconSize(context),
+              height: calculateIconSize(context),
+              colorFilter: value == ButtonState.loading
+                  ? ColorFilter.mode(
+                      Degiskenler.currentThemeNotifier.value.textColor
+                          .withOpacity(0.3),
+                      BlendMode.srcIn)
+                  : null,
+            ),
+            iconSize: calculateIconSize(context),
+            onPressed: value == ButtonState.loading
+                ? null
+                : () {
+                    AudioService.previous();
+                  });
       },
     );
   }
@@ -232,27 +236,24 @@ class NextSongButton extends StatelessWidget {
     return ValueListenableBuilder<ButtonState>(
       valueListenable: AudioService.playButtonNotifier,
       builder: (_, value, __) {
-        switch (value) {
-          case ButtonState.loading:
-            return Container(
-              margin: const EdgeInsets.all(8.0),
-              width: 32.0,
-              height: 32.0,
-              /*child: const CircularProgressIndicator(),*/
-            );
-          case ButtonState.paused || ButtonState.playing:
-            return IconButton(
-                icon: SvgPicture.asset(
-                  'assets/icons/next.svg',
-                  width: calculateIconSize(context),
-                  height: calculateIconSize(context),
-                  //color: Colors.red, // İstenilen rengi belirtin
-                ),
-                iconSize: calculateIconSize(context),
-                onPressed: () {
-                  AudioService.next();
-                });
-        }
+        return IconButton(
+            icon: SvgPicture.asset(
+              'assets/icons/next.svg',
+              width: calculateIconSize(context),
+              height: calculateIconSize(context),
+              colorFilter: value == ButtonState.loading
+                  ? ColorFilter.mode(
+                      Degiskenler.currentThemeNotifier.value.textColor
+                          .withOpacity(0.3),
+                      BlendMode.srcIn)
+                  : null,
+            ),
+            iconSize: calculateIconSize(context),
+            onPressed: value == ButtonState.loading
+                ? null
+                : () {
+                    AudioService.next();
+                  });
       },
     );
   }
@@ -476,8 +477,21 @@ class ShareButton extends StatelessWidget {
           ),
           onPressed: () {
             if (Degiskenler.hediyeninIndex.toInt() != Degiskenler.parcaIndex) {
-              Share.share(
-                  'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}');
+              String shareLink = 'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}';
+              try {
+                for (var item in Degiskenler.songListNotifier.value) {
+                  if (item['sira_no']?.toString() == Degiskenler.parcaIndex.toString()) {
+                    if (item['hyperlink'] != null && item['hyperlink'].toString().isNotEmpty) {
+                      shareLink = 'https://benolanben.com/${item['hyperlink']}';
+                    }
+                    break;
+                  }
+                }
+              } catch (e) {
+                print("Share error: $e");
+              }
+              
+              Share.share(shareLink);
             }
           },
         );
@@ -495,6 +509,9 @@ class _LikeButtonState extends State<LikeButton> {
   final MusicApiService _apiService = MusicApiService();
   bool _isLiked = false;
   bool _isLoading = false;
+  
+  static int _lastCheckedIndex = -1;
+  static bool _lastCheckedStatus = false;
 
   @override
   void initState() {
@@ -511,12 +528,29 @@ class _LikeButtonState extends State<LikeButton> {
 
   Future<void> _checkLikeStatus() async {
     if (Degiskenler.parcaIndex != -1) {
+      if (_lastCheckedIndex == Degiskenler.parcaIndex) {
+        if (mounted) setState(() => _isLiked = _lastCheckedStatus);
+        return;
+      }
+      
+      // ANINDA GÜNCELLEME: Global listede varsa veya yoksa direkt oradan anla.
+      // İnternete gidip tekrar sormaya gerek yok, yerel liste (myLikes) en güncelidir.
+      if (Degiskenler.isSyncedNotifier.value) {
+        bool inLikes = Degiskenler.myLikesNotifier.value.any((liked) => liked['sira_no'].toString() == Degiskenler.parcaIndex.toString());
+        _lastCheckedIndex = Degiskenler.parcaIndex;
+        _lastCheckedStatus = inLikes;
+        if (mounted) setState(() => _isLiked = inLikes);
+        return;
+      }
+      
       if (mounted) setState(() => _isLoading = true);
       try {
         final token = await _apiService.storage.read(key: 'jwt_token');
         if (token != null) {
           bool liked =
               await _apiService.checkLikeStatus(Degiskenler.parcaIndex);
+          _lastCheckedIndex = Degiskenler.parcaIndex;
+          _lastCheckedStatus = liked;
           if (mounted) {
             setState(() {
               _isLiked = liked;
@@ -544,34 +578,51 @@ class _LikeButtonState extends State<LikeButton> {
           return StatefulBuilder(builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: theme.backgroundColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
               title: Text('Cihaz Eşleştirme',
-                  style: TextStyle(color: theme.textColor, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      color: theme.textColor, fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStep(1, 'https://benolanben.com/atesiask adresine gidin.', theme),
-                    _buildStep(2, 'Sağ üstten Apple/Google ile giriş yapın.', theme),
-                    _buildStep(3, 'Sol üstteki senkronizasyon (bulut) simgesine basın.', theme),
-                    _buildStep(4, 'Ekranda gördüğünüz 6 haneli kodu aşağıya girin.', theme),
+                    _buildStep(
+                        1,
+                        'https://benolanben.com/atesiask adresine gidin.',
+                        theme),
+                    _buildStep(
+                        2, 'Sağ üstten Apple/Google ile giriş yapın.', theme),
+                    _buildStep(
+                        3,
+                        'Sol üstteki senkronizasyon (bulut) simgesine basın.',
+                        theme),
+                    _buildStep(
+                        4,
+                        'Ekranda gördüğünüz 6 haneli kodu aşağıya girin.',
+                        theme),
                     const SizedBox(height: 24),
                     TextField(
                       controller: codeController,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
                       style: TextStyle(
-                          color: theme.textColor, fontSize: 28, letterSpacing: 10, fontWeight: FontWeight.bold),
+                          color: theme.textColor,
+                          fontSize: 28,
+                          letterSpacing: 10,
+                          fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
                         hintText: '000000',
-                        hintStyle: TextStyle(color: theme.textColor.withOpacity(0.1)),
+                        hintStyle:
+                            TextStyle(color: theme.textColor.withOpacity(0.1)),
                         errorText: errorMessage,
                         counterText: "",
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: theme.textColor.withOpacity(0.1))),
+                            borderSide: BorderSide(
+                                color: theme.textColor.withOpacity(0.1))),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(color: theme.accentColor)),
@@ -581,7 +632,8 @@ class _LikeButtonState extends State<LikeButton> {
                       Center(
                         child: Padding(
                             padding: const EdgeInsets.all(16.0),
-                            child: CircularProgressIndicator(color: theme.accentColor)),
+                            child: CircularProgressIndicator(
+                                color: theme.accentColor)),
                       ),
                   ],
                 ),
@@ -591,7 +643,8 @@ class _LikeButtonState extends State<LikeButton> {
                   onPressed:
                       isDialogLoading ? null : () => Navigator.pop(context),
                   child: Text('İptal',
-                      style: TextStyle(color: theme.textColor.withOpacity(0.6))),
+                      style:
+                          TextStyle(color: theme.textColor.withOpacity(0.6))),
                 ),
                 TextButton(
                   onPressed: isDialogLoading
@@ -622,7 +675,9 @@ class _LikeButtonState extends State<LikeButton> {
                           }
                         },
                   child: Text('Doğrula',
-                      style: TextStyle(color: theme.accentColor, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          color: theme.accentColor,
+                          fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -638,12 +693,20 @@ class _LikeButtonState extends State<LikeButton> {
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: theme.accentColor.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                color: theme.accentColor.withOpacity(0.1),
+                shape: BoxShape.circle),
             child: Text('$number',
-                style: TextStyle(color: theme.accentColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    color: theme.accentColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, style: TextStyle(color: theme.textColor.withOpacity(0.8), fontSize: 13))),
+          Expanded(
+              child: Text(text,
+                  style: TextStyle(
+                      color: theme.textColor.withOpacity(0.8), fontSize: 13))),
         ],
       ),
     );
@@ -663,8 +726,9 @@ class _LikeButtonState extends State<LikeButton> {
         });
         final success = await _apiService.toggleLike(Degiskenler.parcaIndex);
         if (success) {
+          _lastCheckedStatus = _isLiked;
           // Başarılı olduğunda global dokunanlar listesini de yenileylim
-          final likes = await _apiService.fetchMyLikes(limit: 50);
+          final likes = await _apiService.fetchMyLikes(limit: 500);
           Degiskenler.myLikesNotifier.value = likes;
         } else {
           if (mounted) {
@@ -704,7 +768,8 @@ class _LikeButtonState extends State<LikeButton> {
                     height: calculateIconSize(context),
                     colorFilter: _isLiked
                         ? ColorFilter.mode(theme.accentColor, BlendMode.srcIn)
-                        : ColorFilter.mode(theme.textColor.withOpacity(0.7), BlendMode.srcIn),
+                        : ColorFilter.mode(
+                            theme.textColor.withOpacity(0.7), BlendMode.srcIn),
                   ),
                 ),
           iconSize: calculateIconSize(context),
@@ -728,7 +793,9 @@ class AudioControlButtons extends StatelessWidget {
           decoration: showTrackNames
               ? BoxDecoration(
                   color: theme.backgroundColor,
-                  border: Border(top: BorderSide(color: theme.textColor.withOpacity(0.05))),
+                  border: Border(
+                      top:
+                          BorderSide(color: theme.textColor.withOpacity(0.05))),
                 )
               : BoxDecoration(
                   color: theme.backgroundColor,
@@ -776,24 +843,29 @@ class AudioControlButtons extends StatelessWidget {
                   ],
                 ),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
+                padding: const EdgeInsets.symmetric(
+                    vertical: 16.0, horizontal: 12.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     if (showTrackNames) ListButton() else BackButton(),
-                    
+
                     // Orta Grup (Geri, Oynat, İleri) - Merkeze daha yakın
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         PreviousSongButton(),
-                        const SizedBox(width: 24), // 8 -> 24 yapıldı, birbirine girmesinler
+                        const SizedBox(
+                            width:
+                                24), // 8 -> 24 yapıldı, birbirine girmesinler
                         PlayButton(),
-                        const SizedBox(width: 24), // 8 -> 24 yapıldı, birbirine girmesinler
+                        const SizedBox(
+                            width:
+                                24), // 8 -> 24 yapıldı, birbirine girmesinler
                         NextSongButton(),
                       ],
                     ),
-                    
+
                     RepeatButton(),
                   ],
                 ),

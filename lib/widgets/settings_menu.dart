@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../yaveran/Degiskenler.dart';
+import '../yaveran/app_theme.dart';
 import '../yaveran/MusicApiService.dart';
+import '../yaveran/audio_service.dart';
 
 class SettingsMenu extends StatelessWidget {
   final MusicApiService _apiService = MusicApiService();
@@ -48,6 +50,92 @@ class SettingsMenu extends StatelessWidget {
     );
   }
 
+  void _showSleepTimerDialog(BuildContext context, AppTheme theme) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final TextEditingController customTimeController = TextEditingController();
+        return AlertDialog(
+          backgroundColor: theme.cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Zamanlayıcı',
+              style: TextStyle(color: theme.textColor, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text("10 Dakika", style: TextStyle(color: theme.textColor)),
+                onTap: () {
+                  AudioService.startSleepTimer(10);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: Text("20 Dakika", style: TextStyle(color: theme.textColor)),
+                onTap: () {
+                  AudioService.startSleepTimer(20);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: Text("30 Dakika", style: TextStyle(color: theme.textColor)),
+                onTap: () {
+                  AudioService.startSleepTimer(30);
+                  Navigator.pop(context);
+                },
+              ),
+              Divider(color: theme.textColor.withOpacity(0.1)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: customTimeController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: theme.textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Özel (dk)',
+                          hintStyle: TextStyle(color: theme.subTextColor),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: theme.textColor.withOpacity(0.1)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: theme.accentColor),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.accentColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        final val = int.tryParse(customTimeController.text);
+                        if (val != null && val > 0) {
+                          AudioService.startSleepTimer(val);
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text('Başlat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AppTheme>(
@@ -76,8 +164,10 @@ class SettingsMenu extends StatelessWidget {
   void _showSettingsPanel(BuildContext context, AppTheme theme) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
         decoration: BoxDecoration(
           color: theme.backgroundColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
@@ -127,34 +217,104 @@ class SettingsMenu extends StatelessWidget {
                       onTap: () {
                         Degiskenler.currentThemeNotifier.value = t;
                         Degiskenler.saveTheme(t);
-                        Navigator.pop(context); // Close the settings menu
+                        Navigator.pop(context);
                       },
-                      child: Container(
-                        width: 48,
-                        height: 48,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOut,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: t.backgroundColor,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isSelected ? t.accentColor : theme.textColor.withOpacity(0.1),
-                            width: isSelected ? 3 : 1,
+                            color: isSelected
+                                ? t.accentColor
+                                : theme.textColor.withOpacity(0.1),
+                            width: isSelected ? 2.0 : 1.0,
                           ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                      color: t.accentColor.withOpacity(0.3),
-                                      blurRadius: 10,
-                                      spreadRadius: 2)
+                                    color: t.accentColor.withOpacity(0.3),
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
+                                  )
                                 ]
                               : [],
                         ),
-                        child: isSelected
-                            ? Icon(Icons.check_circle_rounded, color: t.accentColor, size: 24)
-                            : null,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              t.name,
+                              style: TextStyle(
+                                color: t.accentColor,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                fontSize: 13,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            if (isSelected) ...[
+                              const SizedBox(width: 8),
+                              Icon(Icons.check_circle_rounded, color: t.accentColor, size: 16),
+                            ]
+                          ],
+                        ),
                       ),
                     );
                   }).toList(),
                 ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Sleep Timer Section
+              ValueListenableBuilder<int>(
+                valueListenable: Degiskenler.sleepTimerRemainingNotifier,
+                builder: (context, remainingTime, _) {
+                  String statusText = remainingTime > 0 
+                      ? "${remainingTime ~/ 60}:${(remainingTime % 60).toString().padLeft(2, '0')}"
+                      : "Kapalı";
+                  
+                  return _buildSettingSection(
+                    theme,
+                    "Zamanlayıcı",
+                    Icons.timer_outlined,
+                    Row(
+                      children: [
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            color: remainingTime > 0
+                                ? theme.accentColor
+                                : theme.subTextColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (remainingTime > 0)
+                          IconButton(
+                            onPressed: () => AudioService.cancelSleepTimer(),
+                            icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
+                          ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.accentColor.withOpacity(0.2),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () => _showSleepTimerDialog(context, theme),
+                          child: Text(
+                            "Ayarla", 
+                            style: TextStyle(color: theme.accentColor, fontWeight: FontWeight.bold)
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 24),

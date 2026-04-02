@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
 import 'package:bizidealcennetine/yaveran/ui_support.dart';
@@ -272,6 +273,40 @@ class AudioService {
       ValueNotifier<ButtonState>(ButtonState.paused);
   static final isLastSongNotifier = ValueNotifier<bool>(true);
   static final isShuffleModeEnabledNotifier = ValueNotifier<bool>(false);
+
+  static Timer? _sleepTimer;
+  static Timer? _countdownTimer;
+
+  static void startSleepTimer(int minutes) {
+    cancelSleepTimer();
+    if (minutes <= 0) return;
+
+    int remainingSeconds = minutes * 60;
+    Degiskenler.sleepTimerRemainingNotifier.value = remainingSeconds;
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (remainingSeconds > 0) {
+        remainingSeconds--;
+        Degiskenler.sleepTimerRemainingNotifier.value = remainingSeconds;
+      } else {
+        pause();
+        cancelSleepTimer();
+      }
+    });
+
+    _sleepTimer = Timer(Duration(minutes: minutes), () {
+      pause();
+      cancelSleepTimer();
+    });
+  }
+
+  static void cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+    Degiskenler.sleepTimerRemainingNotifier.value = 0;
+  }
 
   static Future<void> init() async {
     _audioHandler = MyAudioHandler();

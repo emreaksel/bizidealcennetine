@@ -1,115 +1,156 @@
 import 'dart:typed_data';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:kenburns_nullsafety/kenburns_nullsafety.dart';
 import 'package:text_scroll/text_scroll.dart';
 import '../yaveran/Degiskenler.dart';
+import '../yaveran/app_theme.dart';
 import '../yaveran/HttpService.dart';
 
-class LoadingWidget extends StatefulWidget {
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:async';
+import 'dart:ui';
+import 'package:flutter/material.dart';
+
+class SpiritualLoader extends StatefulWidget {
+  final bool isLoading;
+
+  const SpiritualLoader({Key? key, required this.isLoading}) : super(key: key);
+
   @override
-  _LoadingWidgetState createState() => _LoadingWidgetState();
+  _SpiritualLoaderState createState() => _SpiritualLoaderState();
 }
 
-class _LoadingWidgetState extends State<LoadingWidget> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _shimmerAnimation;
+class _SpiritualLoaderState extends State<SpiritualLoader>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _rippleController;
+
+  bool _renderOverlay = false;
+  bool _isVisible = false;
+  Timer? _delayTimer;
+
+  final int _waveCount = 7;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat();
+    _renderOverlay = widget.isLoading;
+    _isVisible = widget.isLoading;
 
-    _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutSine),
-    );
+    // Suyun dalgalanma hızı
+    _rippleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4000),
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(SpiritualLoader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isLoading && !oldWidget.isLoading) {
+      _delayTimer?.cancel();
+      setState(() {
+        _renderOverlay = true;
+        _isVisible = true;
+      });
+    } else if (!widget.isLoading && oldWidget.isLoading) {
+      setState(() {
+        _isVisible = false;
+      });
+      _delayTimer = Timer(const Duration(milliseconds: 1700), () {
+        if (mounted) {
+          setState(() {
+            _renderOverlay = false;
+          });
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
+    _rippleController.dispose();
+    _delayTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_renderOverlay) return const SizedBox.shrink();
+
     return ValueListenableBuilder<AppTheme>(
       valueListenable: Degiskenler.currentThemeNotifier,
       builder: (context, theme, _) {
-        return Container(
-          width: double.infinity,
-          height: double.infinity,
-          color: theme.backgroundColor.withOpacity(0.9),
-          child: AnimatedBuilder(
-            animation: _shimmerAnimation,
-            builder: (context, child) {
-              return Stack(
-                children: [
-                  // Atmospheric Shimmering Layer
-                  Center(
+        return IgnorePointer(
+          ignoring: !_isVisible,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 1000),
+            opacity: _isVisible ? 1.0 : 0.0,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
                     child: Container(
-                      width: MediaQuery.of(context).size.width * 0.8,
-                      height: MediaQuery.of(context).size.width * 0.8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            theme.accentColor.withOpacity(
-                                (0.3 * (1.0 - (_shimmerAnimation.value - 0.5).abs())).clamp(0.0, 1.0)),
-                            theme.backgroundColor.withOpacity(0.0),
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
+                      color: theme.backgroundColor.withOpacity(0.2),
                     ),
                   ),
-                  // Moving Essence Ring
-                  Center(
-                    child: Transform.scale(
-                      scale: 1.0 + (_shimmerAnimation.value * 0.2),
-                      child: Opacity(
-                        opacity: (1.0 - (_shimmerAnimation.value - 0.5).abs()).clamp(0.0, 1.0),
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: theme.accentColor.withOpacity(0.2),
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                ),
+
+                // Sadece hiçlikten doğan dalgalar var, katı bir merkez yok
+                Center(
+                  child: AnimatedBuilder(
+                    animation: _rippleController,
+                    builder: (context, child) {
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: _buildRipples(theme.accentColor),
+                      );
+                    },
                   ),
-                  // Core Breathing Light
-                  Center(
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: theme.accentColor,
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.accentColor,
-                            blurRadius: 20 * (1.1 + (_shimmerAnimation.value * 0.1)),
-                            spreadRadius: 5,
-                          )
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
+                ),
+              ],
+            ),
           ),
         );
       },
     );
+  }
+
+  List<Widget> _buildRipples(Color baseColor) {
+    return List.generate(_waveCount, (index) {
+      final double phase =
+          (_rippleController.value + (index / _waveCount)) % 1.0;
+
+      // Dalga merkezden (0'dan) dışarıya (200px'e) doğru büyür
+      final double easeOutPhase = Curves.easeOut.transform(phase);
+      final double currentSize = easeOutPhase * 200;
+
+      // Saydamlık yönetimi (Hiçlikten doğuş ve kayboluş)
+      double opacity = 0.0;
+      if (easeOutPhase < 0.15) {
+        // İlk %15'lik kısımda şeffaflık 0'dan 1'e yumuşakça çıkar (belirme anı)
+        opacity = easeOutPhase / 0.15;
+      } else {
+        // Geri kalan %85'lik kısımda 1'den 0'a inerek sönümlenir
+        opacity = 1.0 - ((easeOutPhase - 0.15) / 0.85);
+      }
+
+      return Container(
+        width: currentSize,
+        height: currentSize,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            // Rengi ve çizgiyi iyice yumuşattık
+            color: baseColor.withOpacity(opacity * 0.4),
+            width: 1.0 + (opacity * 1.5),
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -178,7 +219,7 @@ class AkanYazi extends StatelessWidget {
       valueListenable: Degiskenler.currentThemeNotifier,
       builder: (context, theme, _) {
         return Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 1),
           decoration: BoxDecoration(
             color: theme.backgroundColor.withOpacity(0.45),
             borderRadius: const BorderRadius.only(
@@ -186,29 +227,52 @@ class AkanYazi extends StatelessWidget {
               topRight: Radius.circular(8),
             ),
             border: Border(
-              top: BorderSide(color: theme.textColor.withOpacity(0.1), width: 0.5),
-              left: BorderSide(color: theme.textColor.withOpacity(0.1), width: 0.5),
-              right: BorderSide(color: theme.textColor.withOpacity(0.1), width: 0.5),
+              top: BorderSide(
+                  color: theme.textColor.withOpacity(0.1), width: 0.5),
+              left: BorderSide(
+                  color: theme.textColor.withOpacity(0.1), width: 0.5),
+              right: BorderSide(
+                  color: theme.textColor.withOpacity(0.1), width: 0.5),
             ),
           ),
           child: ValueListenableBuilder<String>(
             valueListenable: Degiskenler.currentEpigramNotifier,
             builder: (_, title, __) {
-              return TextScroll(
-                setEpigram(title),
-                mode: TextScrollMode.endless,
-                velocity: const Velocity(pixelsPerSecond: Offset(40, 0)),
-                delayBefore: const Duration(milliseconds: 1000),
-                numberOfReps: 99999,
-                pauseBetween: const Duration(milliseconds: 100),
-                style: TextStyle(
-                  color: theme.textColor.withOpacity(0.9),
-                  fontSize: yaziBoyutu,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.5,
+              return ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return const LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.black,
+                      Colors.black,
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.17, 0.83, 1.0],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: Material(
+                  type: MaterialType
+                      .transparency, // ← TextScroll'un beyaz arka planını ezer
+                  child: TextScroll(
+                    setEpigram(title),
+                    mode: TextScrollMode.endless,
+                    velocity: const Velocity(pixelsPerSecond: Offset(40, 0)),
+                    delayBefore: const Duration(milliseconds: 1000),
+                    numberOfReps: 99999,
+                    pauseBetween: const Duration(milliseconds: 100),
+                    style: TextStyle(
+                      color: theme.textColor.withOpacity(0.9),
+                      fontSize: yaziBoyutu,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.right,
+                    selectable: false,
+                  ),
                 ),
-                textAlign: TextAlign.right,
-                selectable: true,
               );
             },
           ),
@@ -260,6 +324,7 @@ class _Base64ImageWidgetState extends State<Base64ImageWidget> {
     return ValueListenableBuilder<String>(
       valueListenable: Degiskenler.currentImageNotifier,
       builder: (context, imageUrl, child) {
+        final theme = Degiskenler.currentThemeNotifier.value;
         if (_currentImageUrl == imageUrl && _imageBytes != null) {
           return Image.memory(
             _imageBytes!,
@@ -273,17 +338,28 @@ class _Base64ImageWidgetState extends State<Base64ImageWidget> {
                     _imageBytes!,
                     fit: BoxFit.cover,
                   )
-                : Image.asset(
-                    'assets/images/loading.gif',
-                    height: MediaQuery.of(context).size.height * 0.05,
-                  );
-          } else
-            return Image.asset(
-              'assets/images/loading.gif',
-              height: MediaQuery.of(context).size.height * 0.05,
-            );
+                : _buildThemedLoadingPlaceholder(context, theme);
+          } else {
+            return _buildThemedLoadingPlaceholder(context, theme);
+          }
         }
       },
+    );
+  }
+
+  Widget _buildThemedLoadingPlaceholder(BuildContext context, AppTheme theme) {
+    return Container(
+      color: theme.backgroundColor.withOpacity(0.5),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: theme.accentColor.withOpacity(0.5),
+          ),
+        ),
+      ),
     );
   }
 }

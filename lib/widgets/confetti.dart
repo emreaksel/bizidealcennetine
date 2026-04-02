@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../yaveran/Degiskenler.dart';
+import '../yaveran/app_theme.dart';
 
 class HeartConfettiWidget extends StatefulWidget {
   final Widget child;
@@ -269,15 +270,14 @@ class ImprovedConfettiDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AppTheme>(
-      valueListenable: Degiskenler.currentThemeNotifier,
-      builder: (context, theme, _) {
-        return HeartConfettiWidget(
-          particleCount: 29,
-          animationDuration: const Duration(seconds: 4),
-          heartColor: theme.accentColor,
-          child: child,
-        );
-      }
-    );
+        valueListenable: Degiskenler.currentThemeNotifier,
+        builder: (context, theme, _) {
+          return HeartConfettiWidget(
+            particleCount: 29,
+            animationDuration: const Duration(seconds: 4),
+            heartColor: theme.accentColor,
+            child: child,
+          );
+        });
   }
 }

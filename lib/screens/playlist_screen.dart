@@ -5,6 +5,7 @@ import '../yaveran/MusicApiService.dart';
 import '../yaveran/audio_service.dart';
 import '../yaveran/ui_support.dart';
 import '../yaveran/widgets.dart';
+import '../yaveran/app_theme.dart';
 
 class ListeWidget extends StatefulWidget {
   @override
@@ -68,7 +69,7 @@ class _ListeWidgetState extends State<ListeWidget>
   }
 
   Future<void> _fetchMyLikes() async {
-    final likes = await _apiService.fetchMyLikes(limit: 50);
+    final likes = await _apiService.fetchMyLikes(limit: 500);
     Degiskenler.myLikesNotifier.value = likes;
   }
 
@@ -105,11 +106,13 @@ class _ListeWidgetState extends State<ListeWidget>
     return fontSize;
   }
 
-  Widget _buildSongList(List<dynamic> songList) {
+  Widget _buildSongList(List<dynamic> songList, {bool reverse = true}) {
     List<dynamic> displayList =
         filteredSongList.isNotEmpty ? filteredSongList : songList;
 
-    displayList = displayList.reversed.toList();
+    if (reverse) {
+      displayList = displayList.reversed.toList();
+    }
 
     return ValueListenableBuilder<AppTheme>(
       valueListenable: Degiskenler.currentThemeNotifier,
@@ -152,97 +155,110 @@ class _ListeWidgetState extends State<ListeWidget>
             ),
           );
         } else {
-          return ListView.builder(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: displayList.length,
-            itemBuilder: (context, index) {
-              final song = displayList[index];
-              return Container(
-                margin: EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: theme.cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
+          return ValueListenableBuilder<List<dynamic>>(
+            valueListenable: Degiskenler.myLikesNotifier,
+            builder: (context, myLikes, _) {
+              final bool isSynced = Degiskenler.isSyncedNotifier.value;
+              return ListView.builder(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: displayList.length,
+                itemBuilder: (context, index) {
+                  final song = displayList[index];
+                  final bool isLiked = isSynced && 
+                      myLikes.any((liked) => liked['sira_no'].toString() == song['sira_no'].toString());
+
+                  return Container(
+                    margin: EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () {
-                      AudioService.playAtId(song['sira_no']);
-                      UI_support.ekranboyut_ana(0);
-                    },
-                    child: Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: theme.textColor.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.music_note_rounded,
-                              color: theme.accentColor,
-                              size: 22,
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    song['parca_adi'].toString().toUpperCase(),
-                                    style: TextStyle(
-                                      color: theme.textColor.withOpacity(0.9),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 1.0,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          AudioService.playAtId(song['sira_no']);
+                          UI_support.ekranboyut_ana(0);
+                        },
+                        child: Padding(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: theme.textColor.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.music_note_rounded,
+                                  color: theme.accentColor,
+                                  size: 22,
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        song['parca_adi'].toString().toUpperCase(),
+                                        style: TextStyle(
+                                          color: theme.textColor.withOpacity(0.9),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 1.0,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6.0),
-                                  child: Text(
-                                    " • ",
-                                    style: TextStyle(
-                                      color: theme.textColor.withOpacity(0.4),
-                                      fontSize: 14,
-                                      letterSpacing: 2.0,
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6.0),
+                                      child: Text(
+                                        " • ",
+                                        style: TextStyle(
+                                          color: theme.textColor.withOpacity(0.4),
+                                          fontSize: 14,
+                                          letterSpacing: 2.0,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    Text(
+                                      song['seslendiren'] ?? '',
+                                      style: TextStyle(
+                                        color: theme.subTextColor,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (isLiked) ...[
+                                      SizedBox(width: 8),
+                                      Icon(Icons.favorite, color: theme.accentColor, size: 14),
+                                    ],
+                                  ],
                                 ),
-                                Text(
-                                  song['seslendiren'] ?? '',
-                                  style: TextStyle(
-                                    color: theme.subTextColor,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             },
           );
@@ -321,7 +337,7 @@ class _ListeWidgetState extends State<ListeWidget>
                           ValueListenableBuilder<List<dynamic>>(
                             valueListenable: Degiskenler.songListNotifier,
                             builder: (context, songList, _) =>
-                                _buildSongList(songList),
+                                _buildSongList(songList, reverse: true),
                           ),
 
                           // 2. DOKUNANLAR (BEĞENİLER)
@@ -329,7 +345,7 @@ class _ListeWidgetState extends State<ListeWidget>
                               ? ValueListenableBuilder<List<dynamic>>(
                                   valueListenable: Degiskenler.myLikesNotifier,
                                   builder: (context, myLikes, _) =>
-                                      _buildSongList(myLikes),
+                                      _buildSongList(myLikes, reverse: false),
                                 )
                               : Center(
                                   child: Column(
@@ -377,7 +393,9 @@ class _ListeWidgetState extends State<ListeWidget>
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                     decoration: BoxDecoration(
                       color: theme.backgroundColor,
-                      border: Border(top: BorderSide(color: theme.textColor.withOpacity(0.1))),
+                      border: Border(
+                          top: BorderSide(
+                              color: theme.textColor.withOpacity(0.1))),
                     ),
                     child: Row(
                       children: [
@@ -386,22 +404,31 @@ class _ListeWidgetState extends State<ListeWidget>
                             decoration: BoxDecoration(
                               color: theme.textColor.withOpacity(0.05),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: theme.textColor.withOpacity(0.1)),
+                              border: Border.all(
+                                  color: theme.textColor.withOpacity(0.1)),
                             ),
                             child: TextField(
                               focusNode: _focusNode,
                               controller: _searchController,
-                              style: TextStyle(color: theme.textColor, fontSize: 14),
+                              style: TextStyle(
+                                  color: theme.textColor, fontSize: 14),
                               onChanged: (value) => _runSearch(value),
                               decoration: InputDecoration(
-                                hintText: "Bir parça veya seslendiren ara...",
-                                hintStyle: TextStyle(color: theme.textColor.withOpacity(0.3), fontSize: 13),
-                                prefixIcon: Icon(Icons.search_rounded, color: theme.accentColor, size: 20),
+                                hintText: "Hatırla...",
+                                hintStyle: TextStyle(
+                                    color: theme.textColor.withOpacity(0.3),
+                                    fontSize: 13),
+                                prefixIcon: Icon(Icons.search_rounded,
+                                    color: theme.accentColor, size: 20),
                                 border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
                                 suffixIcon: searchText.isNotEmpty
                                     ? IconButton(
-                                        icon: Icon(Icons.clear, color: theme.textColor.withOpacity(0.5), size: 18),
+                                        icon: Icon(Icons.clear,
+                                            color: theme.textColor
+                                                .withOpacity(0.5),
+                                            size: 18),
                                         onPressed: () {
                                           setState(() {
                                             _searchController.clear();
@@ -430,4 +457,3 @@ class _ListeWidgetState extends State<ListeWidget>
     );
   }
 }
-
