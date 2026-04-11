@@ -17,7 +17,7 @@
     <key>provisioningProfiles</key>
     <dict>
         <key>com.ea.atesiask</key>
-        <string>Provisioning Profile</string>
+        <string>flutter_01</string>
     </dict>
 </dict>
 </plist>
