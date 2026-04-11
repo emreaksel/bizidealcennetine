@@ -76,9 +76,16 @@ jobs:
           pod install --repo-update
           cd ..
           echo "✅ Tüm bağımlılıklar hazır."
-
       # ----------------------------------------------------------
-      # 4. IPA Build Alımı
+      # 4. Otomatik İmzalamayı Devre Dışı Bırak
+      # ----------------------------------------------------------
+      - name: "Otomatik İmzalamayı Devre Dışı Bırak"
+              run: |
+                # Proje dosyasındaki 'Automatic' ayarını 'Manual' olarak değiştirir
+                sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+                echo "✅ Otomatik imzalama kapatıldı, manuel moda geçildi."
+      # ----------------------------------------------------------
+      # 5. IPA Build Alımı
       # ----------------------------------------------------------
       - name: "IPA Build Al"
         run: |
@@ -88,7 +95,7 @@ jobs:
           echo "✅ Build başarıyla tamamlandı!"
 
       # ----------------------------------------------------------
-      # 5. Sonucu Kaydet (Artifact)
+      # 6. Sonucu Kaydet (Artifact)
       # ----------------------------------------------------------
       - name: "Üretilen IPA'yı Kaydet"
         uses: actions/upload-artifact@v4
