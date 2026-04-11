@@ -87,7 +87,9 @@ jobs:
       - name: "Xcode İmzalama Ayarlarını Zorla"
         run: |
           PROJ="ios/Runner.xcodeproj/project.pbxproj"
-
+          # ✅ KRİTİK: Hardcode Flutter yolunu runner'ın gerçek yoluyla değiştir
+          sed -i '' "s|/Users/mixerdating/flutter|$FLUTTER_ROOT|g" "$PROJ"
+          
           # Mevcut imzalama satırlarını temizle
           sed -i '' '/PROVISIONING_PROFILE[^_]/d' "$PROJ"
           sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' "$PROJ"
