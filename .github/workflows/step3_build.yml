@@ -91,7 +91,9 @@ jobs:
         run: |
           echo "🔨 Build başlıyor... (Bu aşama 10-15 dk sürebilir)"
           # --export-options-plist: İmzalamanın nasıl yapılacağını söyler
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --build-number=$GITHUB_RUN_NUMBER
           echo "✅ Build başarıyla tamamlandı!"
 
       # ----------------------------------------------------------
