@@ -65,21 +65,20 @@ jobs:
           cd ..
           echo "✅ Tüm bağımlılıklar hazır."
 
-      # ----------------------------------------------------------
-      # 4. Otomatik İmzalamayı Nükleer Yöntemle Kapat
-      # ----------------------------------------------------------
-      - name: "Otomatik İmzalamayı Devre Dışı Bırak"
+      - name: "Yetkileri ve İmzalamayı Zorla"
         run: |
-          # 1. Tüm ProvisioningStyle satırlarını 'Manual' yap
+          # 1. Otomatik imzalamayı kapat (Zaten yapmıştık)
           sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
-          
-          # 2. CODE_SIGN_STYLE varsa onu da 'Manual' yap
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # 3. Xcode'a "Benim hesabımı sorma, sana verdiğim Team ID'yi kullan" diyoruz
+          # 2. KRİTİK: Eğer Associated Domains kullanmıyorsan, proje içindeki talebi siliyoruz.
+          # Bu komut, proje dosyasındaki Associated Domains yetki zorunluluğunu kaldırır.
+          sed -i '' '/com.apple.developer.associated-domains/d' ios/Runner/Runner.entitlements 2>/dev/null || true
+          
+          # 3. Team ID'yi her yere işle
           sed -i '' 's/DevelopmentTeam = [A-Z0-9]*;/DevelopmentTeam = 76J8JGV82N;/g' ios/Runner.xcodeproj/project.pbxproj
           
-          echo "✅ Proje dosyası manuel imzalama için zorlandı."
+          echo "✅ Yetki çakışmaları temizlendi."
 
       # ----------------------------------------------------------
       # 5. IPA Build Alımı
