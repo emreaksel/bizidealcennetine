@@ -65,20 +65,28 @@ jobs:
           cd ..
           echo "✅ Tüm bağımlılıklar hazır."
 
-      - name: "Yetkileri ve İmzalamayı Zorla"
+      # ----------------------------------------------------------
+      # 4. İmzalamayı Tamamen Manuel ve Zorunlu Yap
+      # ----------------------------------------------------------
+      - name: "Xcode Proje Dosyasını İmzalamaya Zorla"
         run: |
-          # 1. Otomatik imzalamayı kapat (Zaten yapmıştık)
-          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          PROJ_PATH="ios/Runner.xcodeproj/project.pbxproj"
           
-          # 2. KRİTİK: Eğer Associated Domains kullanmıyorsan, proje içindeki talebi siliyoruz.
-          # Bu komut, proje dosyasındaki Associated Domains yetki zorunluluğunu kaldırır.
-          sed -i '' '/com.apple.developer.associated-domains/d' ios/Runner/Runner.entitlements 2>/dev/null || true
+          # 1. Otomatik imzalamayı kapat
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' "$PROJ_PATH"
           
-          # 3. Team ID'yi her yere işle
-          sed -i '' 's/DevelopmentTeam = [A-Z0-9]*;/DevelopmentTeam = 76J8JGV82N;/g' ios/Runner.xcodeproj/project.pbxproj
+          # 2. Tüm hedeflere Team ID'yi işle
+          sed -i '' 's/DevelopmentTeam = [A-Z0-9]*;/DevelopmentTeam = 76J8JGV82N;/g' "$PROJ_PATH"
           
-          echo "✅ Yetki çakışmaları temizlendi."
+          # 3. Xcode'a hangi profili kullanacağını açıkça söyle (Specifier)
+          # 'flutter_01' portaldaki profil ismin olduğu için buraya onu giriyoruz
+          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ_PATH"
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/! s/SDKROOT = iphoneos;/SDKROOT = iphoneos;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ_PATH"
+
+          # 4. Dağıtım sertifikası tipini belirle
+          sed -i '' 's/CODE_SIGN_IDENTITY = ".*";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' "$PROJ_PATH"
+          
+          echo "✅ Xcode projesi 'flutter_01' profili için zorlandı."
 
       # ----------------------------------------------------------
       # 5. IPA Build Alımı
