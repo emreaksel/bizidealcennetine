@@ -1,0 +1,84 @@
+# ============================================================
+# ADIM 4: TESTFLIGHT'A GÖNDERME (UPLOAD)
+# ============================================================
+# Bu workflow şunları yapar:
+#   1. Adım 3'te üretilen IPA dosyasını (Artifact) indirir.
+#   2. App Store Connect API anahtarını sisteme tanıtır.
+#   3. 'xcrun altool' kullanarak IPA'yı TestFlight'a yükler.
+# ============================================================
+
+name: "Adım 4 — TestFlight'a Gönder"
+
+on:
+  workflow_dispatch: # Manuel tetikleme
+    inputs:
+      confirm_upload:
+        description: "TestFlight'a yüklemeyi onaylıyor musun? (evet yaz)"
+        required: true
+        default: "hayır"
+
+jobs:
+  upload-to-testflight:
+    runs-on: macos-latest
+    if: github.event.inputs.confirm_upload == 'evet'
+    
+    steps:
+      # ----------------------------------------------------------
+      # 1. Önceki Adımdan Gelen IPA'yı İndir
+      # ----------------------------------------------------------
+      - name: "IPA Artifact'ini İndir"
+        uses: actions/download-artifact@v4
+        with:
+          name: bir-bakista-release-ipa # Adım 3'teki artifact ismiyle aynı olmalı
+          path: build/ios/ipa
+
+      # ----------------------------------------------------------
+      # 2. Apple API Key'i Sisteme Hazırla
+      # ----------------------------------------------------------
+      - name: "App Store Connect API Key'i Kur"
+        env:
+          API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          # Apple araçları API key'i bu özel klasörde arar
+          mkdir -p ~/.appstoreconnect/private_keys
+          
+          # Secret'tan gelen .p8 içeriğini dosyaya yaz
+          # Dosya adı formatı 'AuthKey_KEYID.p8' olmalıdır
+          echo "$API_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          
+          echo "✅ API Key yüklendi."
+
+      # ----------------------------------------------------------
+      # 3. IPA'yı App Store Connect'e Yükle
+      # ----------------------------------------------------------
+      - name: "IPA'yı TestFlight'a Gönder"
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          echo "🚀 TestFlight yüklemesi başlıyor..."
+          
+          # IPA dosyasının yolunu bul
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -1)
+          
+          if [ -z "$IPA_PATH" ]; then
+            echo "❌ HATA: Yüklenecek IPA dosyası bulunamadı!"
+            exit 1
+          fi
+          
+          echo "📦 Bulunan dosya: $IPA_PATH"
+
+          # 'xcrun altool' ile yükleme komutu
+          # --upload-app: Uygulamayı yükle
+          # --type ios: İşletim sistemi tipi
+          # --apiKey: App Store Connect Key ID
+          # --apiIssuer: Issuer ID
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$KEY_ID" \
+            --apiIssuer "$ISSUER_ID"
+
+          echo "✅ Yükleme başarıyla tamamlandı!"
+          echo "📧 Birkaç dakika içinde Apple'dan 'Processing' maili alacaksın."
