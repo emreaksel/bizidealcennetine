@@ -66,40 +66,37 @@ jobs:
           echo "✅ Tüm bağımlılıklar hazır."
 
       # ----------------------------------------------------------
-      # 4. İmzalamayı Tamamen Manuel ve Zorunlu Yap
+      # 4. Xcode Projesini Manuel İmzalamaya Tamamen Zorla
       # ----------------------------------------------------------
-      - name: "Xcode Proje Dosyasını İmzalamaya Zorla"
+      - name: "Xcode Derin Temizlik ve İmzalamayı Zorla"
         run: |
           PROJ_PATH="ios/Runner.xcodeproj/project.pbxproj"
           
-          # 1. Otomatik imzalamayı kapat
-          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' "$PROJ_PATH"
+          # 1. Mevcut tüm profil ve specifier satırlarını SİLELİM (Çakışmayı önlemek için)
+          sed -i '' '/PROVISIONING_PROFILE/d' "$PROJ_PATH"
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' "$PROJ_PATH"
           
-          # 2. Tüm hedeflere Team ID'yi işle
-          sed -i '' 's/DevelopmentTeam = [A-Z0-9]*;/DevelopmentTeam = 76J8JGV82N;/g' "$PROJ_PATH"
+          # 2. Hem ProvisioningStyle hem de CODE_SIGN_STYLE'ı Manuel yapalım
+          # Bazı Xcode sürümleri birine, bazıları diğerine bakar. İkisini de Manuel yapıyoruz.
+          sed -i '' 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' "$PROJ_PATH"
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' "$PROJ_PATH"
           
-          # 3. Xcode'a hangi profili kullanacağını açıkça söyle (Specifier)
-          # 'flutter_01' portaldaki profil ismin olduğu için buraya onu giriyoruz
-          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = ".*";/PROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ_PATH"
-          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/! s/SDKROOT = iphoneos;/SDKROOT = iphoneos;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ_PATH"
-
-          # 4. Dağıtım sertifikası tipini belirle
-          sed -i '' 's/CODE_SIGN_IDENTITY = ".*";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' "$PROJ_PATH"
+          # 3. Team ID'yi (76J8JGV82N) tüm hedeflere (Target) zorla yazalım
+          sed -i '' 's/DevelopmentTeam = [A-Z0-9]*/DevelopmentTeam = 76J8JGV82N/g' "$PROJ_PATH"
           
-          echo "✅ Xcode projesi 'flutter_01' profili için zorlandı."
-
+          # 4. KRİTİK: Her konfigürasyon (Release/Debug/Profile) altına profili tekrar tanımlayalım
+          sed -i '' 's/SDKROOT = iphoneos;/SDKROOT = iphoneos;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ_PATH"
+          
+          echo "✅ Xcode projesi temizlendi ve 'flutter_01' için manuel moda zorlandı."
       # ----------------------------------------------------------
       # 5. IPA Build Alımı
       # ----------------------------------------------------------
       - name: "IPA Build Al"
         run: |
           echo "🔨 Build başlıyor..."
-          # --no-codesign yapmıyoruz, çünkü imzalı IPA istiyoruz.
-          # Ancak manuel imzalamayı Flutter seviyesinde de teyit ediyoruz.
           flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER \
-            --codesign
+            --build-number=$GITHUB_RUN_NUMBER
           echo "✅ Build başarıyla tamamlandı!"
 
       # ----------------------------------------------------------
