@@ -66,12 +66,20 @@ jobs:
           echo "✅ Tüm bağımlılıklar hazır."
 
       # ----------------------------------------------------------
-      # 4. Otomatik İmzalamayı Devre Dışı Bırak (KRİTİK DÜZELTME)
+      # 4. Otomatik İmzalamayı Nükleer Yöntemle Kapat
       # ----------------------------------------------------------
       - name: "Otomatik İmzalamayı Devre Dışı Bırak"
         run: |
+          # 1. Tüm ProvisioningStyle satırlarını 'Manual' yap
           sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
-          echo "✅ Otomatik imzalama kapatıldı, manuel moda geçildi."
+          
+          # 2. CODE_SIGN_STYLE varsa onu da 'Manual' yap
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # 3. Xcode'a "Benim hesabımı sorma, sana verdiğim Team ID'yi kullan" diyoruz
+          sed -i '' 's/DevelopmentTeam = [A-Z0-9]*;/DevelopmentTeam = 76J8JGV82N;/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          echo "✅ Proje dosyası manuel imzalama için zorlandı."
 
       # ----------------------------------------------------------
       # 5. IPA Build Alımı
@@ -81,7 +89,8 @@ jobs:
           echo "🔨 Build başlıyor..."
           flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
-            --build-number=$GITHUB_RUN_NUMBER
+            --build-number=$GITHUB_RUN_NUMBER \
+            --dart-define=MY_APP_ENV=prod # Opsiyonel
           echo "✅ Build başarıyla tamamlandı!"
 
       # ----------------------------------------------------------
