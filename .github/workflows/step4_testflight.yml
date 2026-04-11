@@ -1,84 +1,167 @@
 # ============================================================
-# ADIM 4: TESTFLIGHT'A GÖNDERME (UPLOAD)
+# ADIM 4 — TestFlight'a Otomatik Yükle
 # ============================================================
-# Bu workflow şunları yapar:
-#   1. Adım 3'te üretilen IPA dosyasını (Artifact) indirir.
-#   2. App Store Connect API anahtarını sisteme tanıtır.
-#   3. 'xcrun altool' kullanarak IPA'yı TestFlight'a yükler.
-# ============================================================
-
-name: "Adım 4 — TestFlight'a Gönder"
+name: "Adım 4 — TestFlight Upload"
 
 on:
-  workflow_dispatch: # Manuel tetikleme
+  workflow_dispatch:
     inputs:
-      confirm_upload:
-        description: "TestFlight'a yüklemeyi onaylıyor musun? (evet yaz)"
-        required: true
-        default: "hayır"
+      flutter_version:
+        description: "Flutter sürümü (boş = son stable)"
+        required: false
+        default: ""
 
 jobs:
-  upload-to-testflight:
+  build-and-upload:
     runs-on: macos-latest
-    if: github.event.inputs.confirm_upload == 'evet'
-    
     steps:
-      # ----------------------------------------------------------
-      # 1. Önceki Adımdan Gelen IPA'yı İndir
-      # ----------------------------------------------------------
-      - name: "IPA Artifact'ini İndir"
-        uses: actions/download-artifact@v4
-        with:
-          name: bir-bakista-release-ipa # Adım 3'teki artifact ismiyle aynı olmalı
-          path: build/ios/ipa
+      - name: "Repoyu Klonla"
+        uses: actions/checkout@v4
 
       # ----------------------------------------------------------
-      # 2. Apple API Key'i Sisteme Hazırla
+      # 1. Sertifika
       # ----------------------------------------------------------
-      - name: "App Store Connect API Key'i Kur"
+      - name: "Sertifika ve Keychain Hazırla"
         env:
-          API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
         run: |
-          # Apple araçları API key'i bu özel klasörde arar
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security create-keychain -p "temp_pass" build.keychain
+          security list-keychains -s build.keychain login.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "temp_pass" build.keychain
+          security set-keychain-settings -t 3600 -l build.keychain
+          security import certificate.p12 \
+            -k build.keychain \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/xcodebuild \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "temp_pass" build.keychain
+          echo "=== Yüklü sertifikalar ==="
+          security find-identity -v -p codesigning build.keychain
+          echo "✅ Sertifika hazır."
+
+      # ----------------------------------------------------------
+      # 2. Provisioning Profile
+      # ----------------------------------------------------------
+      - name: "Provisioning Profile Yerleştir"
+        env:
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/flutter_01.mobileprovision
+          echo "✅ Provisioning Profile hazır."
+
+      # ----------------------------------------------------------
+      # 3. App Store Connect API Key
+      # ----------------------------------------------------------
+      - name: "App Store Connect API Key Hazırla"
+        env:
+          ASC_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
           mkdir -p ~/.appstoreconnect/private_keys
-          
-          # Secret'tan gelen .p8 içeriğini dosyaya yaz
-          # Dosya adı formatı 'AuthKey_KEYID.p8' olmalıdır
-          echo "$API_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
-          
-          echo "✅ API Key yüklendi."
+          echo "$ASC_API_KEY" | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "✅ API Key hazır."
 
       # ----------------------------------------------------------
-      # 3. IPA'yı App Store Connect'e Yükle
+      # 4. Flutter
       # ----------------------------------------------------------
-      - name: "IPA'yı TestFlight'a Gönder"
-        env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - name: "Flutter Kur"
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ github.event.inputs.flutter_version }}
+          channel: 'stable'
+          cache: true
+
+      - name: "Bağımlılıkları Yükle"
         run: |
-          echo "🚀 TestFlight yüklemesi başlıyor..."
-          
-          # IPA dosyasının yolunu bul
-          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -1)
-          
-          if [ -z "$IPA_PATH" ]; then
-            echo "❌ HATA: Yüklenecek IPA dosyası bulunamadı!"
-            exit 1
-          fi
-          
-          echo "📦 Bulunan dosya: $IPA_PATH"
+          flutter pub get
+          cd ios && pod install --repo-update && cd ..
+          echo "✅ Bağımlılıklar hazır."
 
-          # 'xcrun altool' ile yükleme komutu
-          # --upload-app: Uygulamayı yükle
-          # --type ios: İşletim sistemi tipi
-          # --apiKey: App Store Connect Key ID
-          # --apiIssuer: Issuer ID
+      # ----------------------------------------------------------
+      # 5. Xcode İmzalama Ayarları
+      # ----------------------------------------------------------
+      - name: "Xcode İmzalama Ayarlarını Zorla"
+        run: |
+          PROJ="ios/Runner.xcodeproj/project.pbxproj"
+          sed -i '' "s|/Users/mixerdating/flutter|$FLUTTER_ROOT|g" "$PROJ"
+          sed -i '' '/PROVISIONING_PROFILE[^_]/d' "$PROJ"
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' "$PROJ"
+          sed -i '' '/CODE_SIGN_IDENTITY/d' "$PROJ"
+          sed -i '' '/CODE_SIGN_STYLE/d' "$PROJ"
+          sed -i '' '/ProvisioningStyle/d' "$PROJ"
+          sed -i '' 's/SDKROOT = iphoneos;/SDKROOT = iphoneos;\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";\n\t\t\t\tCODE_SIGN_STYLE = Manual;\n\t\t\t\tDEVELOPMENT_TEAM = 76J8JGV82N;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ"
+          echo "✅ İmzalama ayarları tamamlandı."
+
+      # ----------------------------------------------------------
+      # 6. IPA Build (imzasız flutter + imzalı xcodebuild)
+      # ----------------------------------------------------------
+      - name: "IPA Build Al"
+        run: |
+          echo "🔨 Build başlıyor..."
+          flutter build ipa --release \
+            --no-codesign \
+            --build-number=$GITHUB_RUN_NUMBER \
+            || true
+
+          echo "📦 xcodebuild ile archive + export..."
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/Runner.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="flutter_01" \
+            DEVELOPMENT_TEAM=76J8JGV82N \
+            | xcpretty
+
+          xcodebuild -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -exportPath build/ios/ipa \
+            | xcpretty
+
+          echo "✅ IPA hazır:"
+          ls -lh build/ios/ipa/*.ipa
+
+      # ----------------------------------------------------------
+      # 7. TestFlight'a Yükle (xcrun altool)
+      # ----------------------------------------------------------
+      - name: "TestFlight'a Yükle"
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -1)
+          echo "📤 Yükleniyor: $IPA_PATH"
+
           xcrun altool --upload-app \
             --type ios \
             --file "$IPA_PATH" \
-            --apiKey "$KEY_ID" \
-            --apiIssuer "$ISSUER_ID"
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
+            --verbose
 
-          echo "✅ Yükleme başarıyla tamamlandı!"
-          echo "📧 Birkaç dakika içinde Apple'dan 'Processing' maili alacaksın."
+          echo "✅ TestFlight'a yükleme tamamlandı!"
+          echo "App Store Connect → TestFlight sekmesinden durumu takip edebilirsin."
+          echo "Apple işleme süresi genellikle 5-15 dakika sürer."
+
+      # ----------------------------------------------------------
+      # 8. IPA'yı Artifact Olarak da Sakla (yedek)
+      # ----------------------------------------------------------
+      - name: "IPA'yı Artifact Olarak Kaydet"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-ipa-${{ github.run_number }}
+          path: build/ios/ipa/*.ipa
+          retention-days: 10
