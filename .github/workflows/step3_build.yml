@@ -1,0 +1,98 @@
+# ============================================================
+# ADIM 3: FLUTTER IPA BUILD TESTİ
+# ============================================================
+# Bu workflow şunları yapar:
+#   1. macOS runner üzerinde temiz bir ortam açar (Kota kullanımı başlar)
+#   2. P12 ve Provisioning Profile'ı secret'lardan çözüp sisteme kurar
+#   3. Flutter ve CocoaPods bağımlılıklarını yükler
+#   4. 'flutter build ipa' komutuyla imzalı uygulama dosyasını üretir
+# ============================================================
+
+name: "Adım 3 — Build Testi"
+on: 
+  workflow_dispatch: # Manuel başlatma
+    inputs:
+      flutter_version:
+        description: "Flutter sürümü (Boş bırakırsan son stable sürüm kullanılır)"
+        required: false
+        default: ""
+
+jobs:
+  build-ios:
+    runs-on: macos-latest # Bu adım için macOS şart
+    steps:
+      - name: "Repoyu Klonla"
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      # 1. Sertifika Kurulumu (Keychain İşlemleri)
+      # ----------------------------------------------------------
+      - name: "Sertifika ve Keychain Hazırla"
+        env:
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          # P12'yi dosyaya yaz
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+          
+          # Geçici Keychain oluştur
+          security create-keychain -p "" build.keychain
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-keychain-settings build.keychain
+          
+          # Sertifikayı içe aktar
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          echo "✅ Sertifika Keychain'e eklendi."
+
+      # ----------------------------------------------------------
+      # 2. Provisioning Profile Kurulumu
+      # ----------------------------------------------------------
+      - name: "Provisioning Profile'ı Yerleştir"
+        env:
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          echo "✅ Provisioning Profile hazır."
+
+      # ----------------------------------------------------------
+      # 3. Flutter ve Bağımlılıklar
+      # ----------------------------------------------------------
+      - name: "Flutter Kur"
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ github.event.inputs.flutter_version }}
+          channel: 'stable'
+          cache: true
+
+      - name: "Bağımlılıkları Yükle (pub & pod)"
+        run: |
+          flutter pub get
+          cd ios
+          # CocoaPods yüklemesi (İşlemci mimarisine dikkat ederek)
+          pod install --repo-update
+          cd ..
+          echo "✅ Tüm bağımlılıklar hazır."
+
+      # ----------------------------------------------------------
+      # 4. IPA Build Alımı
+      # ----------------------------------------------------------
+      - name: "IPA Build Al"
+        run: |
+          echo "🔨 Build başlıyor... (Bu aşama 10-15 dk sürebilir)"
+          # --export-options-plist: İmzalamanın nasıl yapılacağını söyler
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          echo "✅ Build başarıyla tamamlandı!"
+
+      # ----------------------------------------------------------
+      # 5. Sonucu Kaydet (Artifact)
+      # ----------------------------------------------------------
+      - name: "Üretilen IPA'yı Kaydet"
+        uses: actions/upload-artifact@v4
+        with:
+          name: bir-bakista-release-ipa
+          path: build/ios/ipa/*.ipa
+          retention-days: 5 # Dosyayı 5 gün sakla
