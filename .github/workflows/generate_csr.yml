@@ -1,0 +1,24 @@
+name: "Adım 1 - Sertifika Fabrikası: CSR Üret (Linux)"
+on: workflow_dispatch
+
+jobs:
+  create-csr:
+    runs-on: ubuntu-latest # Linux kullanarak 10x kota tasarrufu yapıyoruz
+    steps:
+      - name: "Özel Anahtar ve CSR Oluştur"
+        run: |
+          # Team ID: 76J8JGV82N (Görüntüden alındı)
+          # Name: Emre Aksel
+          openssl genrsa -out private.key 2048
+          openssl req -new -key private.key -out request.certSigningRequest \
+            -subj "/emailAddress=emreaksell@gmail.com, CN=Emre Aksel (76J8JGV82N), C=TR"
+          
+          echo "✅ CSR ve Private Key oluşturuldu."
+
+      - name: "Dosyaları İndirilebilir Yap"
+        uses: actions/upload-artifact@v4
+        with:
+          name: certificate-request-files
+          path: |
+            private.key
+            request.certSigningRequest
