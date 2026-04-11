@@ -1,4 +1,4 @@
-name: "Adım 2 - Sertifika Fabrikası — 2: P12 Birleştir (Linux)"
+name: "Adım 2 - P12 Oluştur (Linux)"
 on: 
   workflow_dispatch:
     inputs:
