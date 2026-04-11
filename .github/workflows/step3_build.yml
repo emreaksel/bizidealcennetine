@@ -94,10 +94,12 @@ jobs:
       - name: "IPA Build Al"
         run: |
           echo "🔨 Build başlıyor..."
+          # --no-codesign yapmıyoruz, çünkü imzalı IPA istiyoruz.
+          # Ancak manuel imzalamayı Flutter seviyesinde de teyit ediyoruz.
           flutter build ipa --release \
             --export-options-plist=ios/ExportOptions.plist \
             --build-number=$GITHUB_RUN_NUMBER \
-            --dart-define=MY_APP_ENV=prod # Opsiyonel
+            --codesign
           echo "✅ Build başarıyla tamamlandı!"
 
       # ----------------------------------------------------------
