@@ -1,0 +1,39 @@
+name: "Adım 2 - P12 Oluştur (Linux)"
+on: 
+  workflow_dispatch:
+    inputs:
+      p12_password:
+        description: "P12 dosyası için bir şifre belirle (En az 6 karakter)"
+        required: true
+        default: "isu12345" # Örnek şifre
+
+jobs:
+  build-p12:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Dosyaları Hazırla"
+        run: |
+          # Secret'tan gelen verileri dosyalara yaz
+          echo "${{ secrets.APPLE_DIST_CER_BASE64 }}" | base64 --decode > distribution.cer
+          echo "${{ secrets.PRIVATE_KEY_CONTENT }}" > private.key
+
+      - name: "P12 Dosyasını Oluştur"
+        run: |
+          # 1. .cer dosyasını .pem formatına çevir
+          openssl x509 -in distribution.cer -inform DER -out distribution.pem -outform PEM
+          
+          # 2. .pem ve private.key'i birleştirip .p12 yap
+          # KRİTİK EKLEME: -legacy bayrağı eklendi!
+          openssl pkcs12 -export -out final_certificate.p12 \
+            -inkey private.key \
+            -in distribution.pem \
+            -password pass:${{ github.event.inputs.p12_password }} \
+            -legacy
+          
+          echo "✅ final_certificate.p12 (Legacy modunda) başarıyla oluşturuldu."
+
+      - name: "P12 Dosyasını İndirilebilir Yap"
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-p12-certificate
+          path: final_certificate.p12
