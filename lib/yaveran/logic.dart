@@ -37,6 +37,20 @@ void setPlaylist(data) async {
 
   List<dynamic> reversedData = data.reversed.toList();
 
+  final existingList = Degiskenler.songListNotifier.value;
+  for (var existingItem in existingList) {
+    bool found = false;
+    for (var newItem in reversedData) {
+      if (existingItem['sira_no'].toString() == newItem['sira_no'].toString()) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      reversedData.insert(0, existingItem);
+    }
+  }
+
   final degiskenler = Degiskenler();
   degiskenler.listDinle = reversedData;
   Degiskenler.songListNotifier.value = reversedData;
@@ -50,9 +64,6 @@ void setPlaylist(data) async {
           id: '${item['sira_no']}',
           album: item['parca_adi'],
           title: item['parca_adi'],
-          artUri: Uri.parse(
-            "${Degiskenler.kaynakYolu}medya/atesiask/0001_kus.jpg",
-          ),
           artist: item['seslendiren'],
         ),
       ),
@@ -85,7 +96,8 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
 
 void handleLink(String? link) {
   if (link != null) {
-    link = link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
+    link =
+        link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
     print("replacedLink $link");
 
     Degiskenler.currentNoticeNotifier.value = link;
@@ -242,8 +254,8 @@ void hediye_irtibat(link, id) {
 
     for (var item in listDinle) {
       if (item['sira_no'].toString() == id.toString()) {
-        app_audio.AudioService.addTrackToPlaylist(item['parca_adi'], item['seslendiren'],
-            item['url'], item['sira_no'], true);
+        app_audio.AudioService.addTrackToPlaylist(item['parca_adi'],
+            item['seslendiren'], item['url'], item['sira_no'], true);
         Degiskenler.hediyeninIndex = item['sira_no'];
         break;
       }

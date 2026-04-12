@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
 import 'package:bizidealcennetine/yaveran/ui_support.dart';
@@ -9,14 +10,124 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_service/audio_service.dart' as audio_service;
 import 'package:bizidealcennetine/yaveran/Notifier.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:bizidealcennetine/yaveran/MusicApiService.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Audio service handler sınıfı
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   static AudioPlayer? _player;
   bool _wasPlayingBeforeInterruption = false;
 
+  int _currentLogTrackId = -1;
+  int _accumulatedListenSeconds = 0;
+  DateTime? _lastPlayStartTime;
+  Timer? _persistenceTimer;
+  String? _currentLogTimestamp;
+
+  List<Map<String, dynamic>> _pendingLogs = [];
+  bool _isSendingLogs = false;
+
+  Future<void> _loadLogs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final logsString = prefs.getString('listen_logs');
+    if (logsString != null) {
+      try {
+        final List<dynamic> parsed = jsonDecode(logsString);
+        for (var el in parsed) {
+          final logMap = Map<String, dynamic>.from(el);
+          if (logMap['status'] == 'current') {
+            if ((logMap['listenDuration'] as int? ?? 0) >= 30) {
+              logMap['status'] = 'completed';
+              _pendingLogs.add(logMap);
+            }
+          } else {
+            _pendingLogs.add(logMap);
+          }
+        }
+      } catch (e) {}
+    }
+    await _saveLogsToPrefs(); 
+    _checkAndSendPendingLogs();
+  }
+
+  Future<void> _saveLogsToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<Map<String, dynamic>> logsToSave = List.from(_pendingLogs);
+    
+    if (_currentLogTrackId != -1 && _accumulatedListenSeconds > 0) {
+      logsToSave.add({
+        'musicId': _currentLogTrackId,
+        'listenDuration': _accumulatedListenSeconds,
+        'timestamp': _currentLogTimestamp ?? DateTime.now().toIso8601String(),
+        'status': 'current'
+      });
+    }
+    
+    if (logsToSave.isEmpty) {
+      await prefs.remove('listen_logs');
+    } else {
+      await prefs.setString('listen_logs', jsonEncode(logsToSave));
+    }
+  }
+
+  void _updateAccumulatedTime() {
+    if (_lastPlayStartTime != null) {
+      _accumulatedListenSeconds +=
+          DateTime.now().difference(_lastPlayStartTime!).inSeconds;
+      _lastPlayStartTime = DateTime.now();
+      _saveLogsToPrefs();
+    }
+  }
+
+  Future<void> _checkAndSendPendingLogs() async {
+    if (_isSendingLogs || _pendingLogs.isEmpty) return;
+    _isSendingLogs = true;
+
+    final logsToSend = List<Map<String, dynamic>>.from(_pendingLogs);
+    
+    for (var log in logsToSend) {
+      bool success = await MusicApiService().sendListenLog(
+        musicId: log['musicId'],
+        listenDuration: log['listenDuration'],
+        timestamp: log['timestamp'],
+      );
+
+      if (success) {
+        _pendingLogs.removeWhere((l) => l['timestamp'] == log['timestamp'] && l['musicId'] == log['musicId']);
+        await _saveLogsToPrefs(); // Gönderilen başarılı logu listeden çıkar ve kaydet
+      }
+    }
+    
+    _isSendingLogs = false;
+  }
+
+  void _finalizeLogForCurrentTrack() {
+    _updateAccumulatedTime();
+    _lastPlayStartTime = null;
+
+    if (_accumulatedListenSeconds >= 30 && _currentLogTrackId != -1) {
+      _pendingLogs.add({
+        'musicId': _currentLogTrackId,
+        'listenDuration': _accumulatedListenSeconds,
+        'timestamp': _currentLogTimestamp ?? DateTime.now().toIso8601String(),
+        'status': 'completed',
+      });
+      _checkAndSendPendingLogs();
+    }
+    _accumulatedListenSeconds = 0;
+    _currentLogTrackId = -1;
+    _currentLogTimestamp = null;
+    _saveLogsToPrefs();
+  }
+
   MyAudioHandler() {
+    _loadLogs();
     _init();
+    _persistenceTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (_player?.playing == true) {
+        _updateAccumulatedTime();
+      }
+    });
   }
 
   Future<void> _init() async {
@@ -82,11 +193,37 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       if (index != null &&
           queue.value.isNotEmpty &&
           index < queue.value.length) {
+        
+        final newTrackIdStr = queue.value[index].id;
+        final newTrackId = int.tryParse(newTrackIdStr) ?? -1;
+
+        if (newTrackId != _currentLogTrackId) {
+          _finalizeLogForCurrentTrack();
+          _currentLogTrackId = newTrackId;
+          _currentLogTimestamp = DateTime.now().toIso8601String();
+          if (_player!.playing) {
+            _lastPlayStartTime = DateTime.now();
+          }
+        }
+
         mediaItem.add(queue.value[index]);
         AudioService.setCurrentTrack(index);
 
         await Future.delayed(const Duration(milliseconds: 100));
         UI_support.changeImageAndEpigram();
+      }
+    });
+
+    _player!.playingStream.listen((playing) {
+      if (playing) {
+        if (_lastPlayStartTime == null) {
+          _lastPlayStartTime = DateTime.now();
+        }
+      } else {
+        if (_lastPlayStartTime != null) {
+          _updateAccumulatedTime();
+          _lastPlayStartTime = null;
+        }
       }
     });
 
@@ -181,6 +318,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> stop() async {
+    _finalizeLogForCurrentTrack();
     playbackState.add(playbackState.value.copyWith(
       playing: false,
       processingState: AudioProcessingState.idle, // Veya .completed
@@ -335,6 +473,15 @@ class AudioService {
       throw Exception('Desteklenmeyen AudioSource tipi');
     }).toList();
 
+    var currentSource = _audioHandler!.player!.audioSource;
+    if (currentSource is ConcatenatingAudioSource && currentSource.children.isNotEmpty) {
+      await currentSource.addAll(playlist);
+      final currentQueue = List<MediaItem>.from(parca_listesi);
+      currentQueue.addAll(mediaItems);
+      await _audioHandler!.updateQueue(currentQueue);
+      return;
+    }
+
     await _audioHandler!.updateQueue(mediaItems);
 
     final Random random = Random();
@@ -369,8 +516,9 @@ class AudioService {
   }
 
   static Future<void> addTrackToPlaylist(adi, ses, yol, sira, oynat) async {
-    Degiskenler.songListNotifier.value.add(
-        {'sira_no': sira, 'parca_adi': adi, 'seslendiren': ses, 'url': yol});
+    final newTrack = {'sira_no': sira, 'parca_adi': adi, 'seslendiren': ses, 'url': yol};
+    Degiskenler().listDinle.add(newTrack);
+    Degiskenler.songListNotifier.value = List.from(Degiskenler.songListNotifier.value)..add(newTrack);
 
     final mediaItem = MediaItem(
       id: sira.toString(),
@@ -472,6 +620,7 @@ class AudioService {
   }
 
   static Future<void> dispose() async {
+    _audioHandler?._persistenceTimer?.cancel();
     await _audioHandler?.stop();
     _audioHandler = null;
   }

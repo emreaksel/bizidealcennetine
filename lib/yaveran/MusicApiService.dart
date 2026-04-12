@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // kIsWeb için
+import 'dart:io' show Platform; // Sadece mobile/desktop için
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
@@ -23,6 +25,28 @@ class MusicApiService {
     };
   }
 
+  Future<Map<String, String>> _getOptionalHeaders() async {
+    final token = await storage.read(key: 'jwt_token');
+    Map<String, String> headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
+  String _getDevicePlatform() {
+    if (kIsWeb) {
+      return 'web-debug';
+    }
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isWindows) return 'windows';
+    if (Platform.isMacOS) return 'macos';
+    if (Platform.isLinux) return 'linux';
+    return 'unknown';
+  }
   // ─────────────────────────────────────────────────────────────────────────────
   // 1. CİHAZ EŞLEŞTİRME & OTURUM İŞLEMLERİ
   // ─────────────────────────────────────────────────────────────────────────────
@@ -173,6 +197,48 @@ class MusicApiService {
     } catch (e) {
       print('Ağ hatası (fetchGlobalTop): $e');
       return [];
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 4. MÜZİK DİNLEME LOGU GÖNDERME
+  // ─────────────────────────────────────────────────────────────────────────────
+  Future<bool> sendListenLog({
+    required int musicId,
+    required int listenDuration,
+    String? timestamp,
+  }) async {
+    try {
+      final headers = await _getOptionalHeaders();
+      final device = _getDevicePlatform(); // ✅ artık web'de de çalışır
+
+      final payload = {
+        'musicId': musicId.toString(),
+        'listenDuration': listenDuration,
+        'device': device,
+      };
+
+      if (timestamp != null) {
+        payload['timestamp'] = timestamp;
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/music/listen'),
+        headers: headers,
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('Dinleme logu başarılı ($musicId - ${listenDuration}s)');
+        return true;
+      } else {
+        print(
+            'Dinleme logu başarısız: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Ağ hatası (sendListenLog): $e');
+      return false;
     }
   }
 }

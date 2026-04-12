@@ -83,18 +83,50 @@ class _ListeWidgetState extends State<ListeWidget>
     super.dispose();
   }
 
+  String _normalizeSearchText(String input) {
+    return input
+        .replaceAll('Ş', 's')
+        .replaceAll('ş', 's')
+        .replaceAll('I', 'i')
+        .replaceAll('ı', 'i')
+        .replaceAll('İ', 'i')
+        .replaceAll('i', 'i')
+        .replaceAll('Ğ', 'g')
+        .replaceAll('ğ', 'g')
+        .replaceAll('Ö', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('Ç', 'c')
+        .replaceAll('ç', 'c')
+        .replaceAll('Ü', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('Â', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('Î', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('Û', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('Ô', 'o')
+        .replaceAll('ô', 'o')
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
   void _runSearch(String value) {
     setState(() {
-      searchText = value.toLowerCase();
+      searchText = value;
+      final normalizedSearch = _normalizeSearchText(value);
       final currentList = _tabController.index == 0
           ? Degiskenler.songListNotifier.value
           : Degiskenler.myLikesNotifier.value;
 
       filteredSongList = currentList.where((song) {
-        String songName = song['parca_adi'].toString().toLowerCase();
-        String singerName =
-            (song['seslendiren'] ?? "").toString().toLowerCase();
-        return songName.contains(searchText) || singerName.contains(searchText);
+        String songName = _normalizeSearchText(song['parca_adi'].toString());
+        String singerName = _normalizeSearchText((song['seslendiren'] ?? "").toString());
+        String songNumber = _normalizeSearchText(song['sira_no'].toString());
+        
+        return songName.contains(normalizedSearch) || 
+               singerName.contains(normalizedSearch) || 
+               songNumber.contains(normalizedSearch);
       }).toList();
     });
   }

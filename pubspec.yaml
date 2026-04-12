@@ -50,6 +50,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.5
   flutter_secure_storage: ^9.0.0  # JWT'yi güvenle saklamak için şart
+  url_launcher: ^6.3.2
   
 dev_dependencies:
   flutter_test:
