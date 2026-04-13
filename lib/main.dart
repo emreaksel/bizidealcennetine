@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'yaveran/Degiskenler.dart';
 import 'yaveran/logic.dart';
 import 'widgets/splash_screen.dart';
@@ -6,6 +7,10 @@ import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Bildirim çubuğunu gizle ve tam ekran moduna geç (Odaklanmayı artırmak için)
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
   runApp(MyApp());
 
   if (!Degiskenler.hazirlaniyor) {

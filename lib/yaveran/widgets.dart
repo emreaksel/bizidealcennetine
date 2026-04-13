@@ -600,8 +600,10 @@ class _LikeButtonState extends State<LikeButton> {
                       InkWell(
                         onTap: () async {
                           final url = Uri.parse('https://benolanben.com/atesiask');
-                          if (await canLaunchUrl(url)) {
+                          try {
                             await launchUrl(url, mode: LaunchMode.externalApplication);
+                          } catch (e) {
+                            debugPrint('URL açılamadı: $url, Hata: $e');
                           }
                         },
                         borderRadius: BorderRadius.circular(12),

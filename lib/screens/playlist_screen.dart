@@ -192,6 +192,7 @@ class _ListeWidgetState extends State<ListeWidget>
             builder: (context, myLikes, _) {
               final bool isSynced = Degiskenler.isSyncedNotifier.value;
               return ListView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: displayList.length,
                 itemBuilder: (context, index) {
@@ -217,6 +218,7 @@ class _ListeWidgetState extends State<ListeWidget>
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () {
+                          FocusManager.instance.primaryFocus?.unfocus();
                           AudioService.playAtId(song['sira_no']);
                           UI_support.ekranboyut_ana(0);
                         },
@@ -445,6 +447,7 @@ class _ListeWidgetState extends State<ListeWidget>
                               style: TextStyle(
                                   color: theme.textColor, fontSize: 14),
                               onChanged: (value) => _runSearch(value),
+                              onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                               decoration: InputDecoration(
                                 hintText: "Hatırla...",
                                 hintStyle: TextStyle(
@@ -462,6 +465,7 @@ class _ListeWidgetState extends State<ListeWidget>
                                                 .withOpacity(0.5),
                                             size: 18),
                                         onPressed: () {
+                                          FocusManager.instance.primaryFocus?.unfocus();
                                           setState(() {
                                             _searchController.clear();
                                             searchText = "";
