@@ -14,11 +14,9 @@ import '../yaveran/app_theme.dart';
 class MainScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: SafeArea(
-          child: MyCustomLayout(),
-        ),
+    return Scaffold(
+      body: SafeArea(
+        child: MyCustomLayout(),
       ),
     );
   }

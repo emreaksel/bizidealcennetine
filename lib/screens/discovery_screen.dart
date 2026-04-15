@@ -36,7 +36,7 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
     super.dispose();
   }
 
-  void _dinle(Map<dynamic, dynamic> item) async {
+  void _dinle(Map<dynamic, dynamic> item) {
     setState(() => _loadingId = item["id"]);
 
     Degiskenler.liste_adi = item["caption"];
@@ -45,18 +45,18 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
     // Ana ekrana hemen dön (kullanıcı beklemek zorunda kalmasın)
     UI_support.ekranboyut_ana(0);
 
-    // Listeyi yükle (arka planda devam eder)
-    await fetchData_jsonDinlemeListesi(
+    // Listeyi yükle (arka planda devam eder, await etmiyoruz ki UI hemen dönsün)
+    fetchData_jsonDinlemeListesi(
       "${Degiskenler.kaynakYolu}kaynak/${item["link"]}.json",
       item["link"],
-    );
-
-    if (mounted) {
-      setState(() {
-        _loadingId = null;
-        _expandedId = null;
-      });
-    }
+    ).then((_) {
+      if (mounted) {
+        setState(() {
+          _loadingId = null;
+          _expandedId = null;
+        });
+      }
+    });
   }
 
   void _toggleExpand(int id) {
