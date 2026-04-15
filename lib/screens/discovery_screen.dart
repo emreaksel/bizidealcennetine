@@ -42,7 +42,10 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
     Degiskenler.liste_adi = item["caption"];
     Degiskenler.liste_link = item["link"];
 
-    // Listeyi yükle (logic içindeki setPlaylist'i çağırır)
+    // Ana ekrana hemen dön (kullanıcı beklemek zorunda kalmasın)
+    UI_support.ekranboyut_ana(0);
+
+    // Listeyi yükle (arka planda devam eder)
     await fetchData_jsonDinlemeListesi(
       "${Degiskenler.kaynakYolu}kaynak/${item["link"]}.json",
       item["link"],
@@ -54,9 +57,6 @@ class _DinlemeListesiWidgetState extends State<DinlemeListesiWidget>
         _expandedId = null;
       });
     }
-
-    // Ana ekrana dön ve çalmaya başla (logic.setPlaylist içinde AudioService.setPlaylist çağrılıyor)
-    UI_support.ekranboyut_ana(0);
   }
 
   void _toggleExpand(int id) {
