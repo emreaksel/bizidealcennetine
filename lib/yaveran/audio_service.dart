@@ -46,14 +46,14 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         }
       } catch (e) {}
     }
-    await _saveLogsToPrefs(); 
+    await _saveLogsToPrefs();
     _checkAndSendPendingLogs();
   }
 
   Future<void> _saveLogsToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     List<Map<String, dynamic>> logsToSave = List.from(_pendingLogs);
-    
+
     if (_currentLogTrackId != -1 && _accumulatedListenSeconds > 0) {
       logsToSave.add({
         'musicId': _currentLogTrackId,
@@ -62,7 +62,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         'status': 'current'
       });
     }
-    
+
     if (logsToSave.isEmpty) {
       await prefs.remove('listen_logs');
     } else {
@@ -84,7 +84,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _isSendingLogs = true;
 
     final logsToSend = List<Map<String, dynamic>>.from(_pendingLogs);
-    
+
     for (var log in logsToSend) {
       bool success = await MusicApiService().sendListenLog(
         musicId: log['musicId'],
@@ -93,11 +93,13 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       );
 
       if (success) {
-        _pendingLogs.removeWhere((l) => l['timestamp'] == log['timestamp'] && l['musicId'] == log['musicId']);
+        _pendingLogs.removeWhere((l) =>
+            l['timestamp'] == log['timestamp'] &&
+            l['musicId'] == log['musicId']);
         await _saveLogsToPrefs(); // Gönderilen başarılı logu listeden çıkar ve kaydet
       }
     }
-    
+
     _isSendingLogs = false;
   }
 
@@ -193,7 +195,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       if (index != null &&
           queue.value.isNotEmpty &&
           index < queue.value.length) {
-        
         final newTrackIdStr = queue.value[index].id;
         final newTrackId = int.tryParse(newTrackIdStr) ?? -1;
 
@@ -243,6 +244,19 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
 
     await _player!.setShuffleModeEnabled(true);
+
+    // Resim değişimlerini dinle ve bildirimi güncelle
+    Degiskenler.currentImageNotifier.addListener(() {
+      if (mediaItem.value != null) {
+        String imageName = Degiskenler.currentImageNotifier.value;
+        if (imageName.isNotEmpty) {
+          mediaItem.add(mediaItem.value!.copyWith(
+            artUri:
+                Uri.parse("${Degiskenler.kaynakYolu}medya/atesiask/$imageName"),
+          ));
+        }
+      }
+    });
   }
 
   AudioServiceRepeatMode _convertLoopMode(LoopMode loopMode) {
@@ -263,7 +277,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
+        MediaControl.rewind,
         if (playing) MediaControl.pause else MediaControl.play,
+        MediaControl.fastForward,
         MediaControl.skipToNext,
         MediaControl.stop,
       ],
@@ -271,8 +287,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         MediaAction.seek,
         MediaAction.seekForward,
         MediaAction.seekBackward,
+        MediaAction.skipToNext,
+        MediaAction.skipToPrevious,
+        MediaAction.setShuffleMode,
+        MediaAction.setRepeatMode,
       },
-      androidCompactActionIndices: const [0, 1, 2],
+      androidCompactActionIndices: const [0, 2, 4],
       processingState: processingState,
       playing: playing,
       updatePosition: _player!.position,
@@ -350,6 +370,19 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> skipToQueueItem(int index) async {
     await _player!.seek(Duration.zero, index: index);
+  }
+
+  @override
+  Future<void> fastForward() async {
+    final newPosition = _player!.position + const Duration(seconds: 10);
+    final duration = _player!.duration ?? Duration.zero;
+    await _player!.seek(newPosition < duration ? newPosition : duration);
+  }
+
+  @override
+  Future<void> rewind() async {
+    final newPosition = _player!.position - const Duration(seconds: 10);
+    await _player!.seek(newPosition > Duration.zero ? newPosition : Duration.zero);
   }
 
   @override
@@ -460,7 +493,7 @@ class AudioService {
     );
   }
 
-  static Future<void> setPlaylist(List<AudioSource> playlist) async {
+  static Future<void> setPlaylist(List<AudioSource> playlist, {bool playNow = true}) async {
     if (_audioHandler == null) {
       throw Exception('AudioService başlatılmadı');
     }
@@ -474,23 +507,39 @@ class AudioService {
     }).toList();
 
     var currentSource = _audioHandler!.player!.audioSource;
-    if (currentSource is ConcatenatingAudioSource && currentSource.children.isNotEmpty) {
+    if (currentSource is ConcatenatingAudioSource &&
+        currentSource.children.isNotEmpty) {
+      int firstNewIndex = currentSource.length;
       await currentSource.addAll(playlist);
       final currentQueue = List<MediaItem>.from(parca_listesi);
       currentQueue.addAll(mediaItems);
       await _audioHandler!.updateQueue(currentQueue);
+
+      // Yeni eklenen parçalardan rastgele birine git
+      final Random random = Random();
+      int targetIndex = firstNewIndex + random.nextInt(playlist.length);
+      await _audioHandler!.skipToQueueItem(targetIndex);
+      if (playNow) await _audioHandler!.play(); // Çalmaya başla
       return;
     }
 
     await _audioHandler!.updateQueue(mediaItems);
 
-    final Random random = Random();
-    final int initialIndex = random.nextInt(playlist.length);
+    int initialIndex = 0;
+    if (Degiskenler.bekleyenHediyeId != null) {
+      initialIndex = 0; // Bekleyen hediye varsa rastgele parça başlatma
+    } else {
+      final Random random = Random();
+      initialIndex = random.nextInt(playlist.length);
+    }
 
     await _audioHandler!.setAudioSource(
       ConcatenatingAudioSource(children: playlist, useLazyPreparation: true),
       initialIndex: initialIndex,
     );
+    if (playNow) await _audioHandler!.play(); // Çalmaya başla
+    
+    Degiskenler.listeYuklendi = true;
   }
 
   static Future<void> playAtId(int id) async {
@@ -516,9 +565,15 @@ class AudioService {
   }
 
   static Future<void> addTrackToPlaylist(adi, ses, yol, sira, oynat) async {
-    final newTrack = {'sira_no': sira, 'parca_adi': adi, 'seslendiren': ses, 'url': yol};
+    final newTrack = {
+      'sira_no': sira,
+      'parca_adi': adi,
+      'seslendiren': ses,
+      'url': yol
+    };
     Degiskenler().listDinle.add(newTrack);
-    Degiskenler.songListNotifier.value = List.from(Degiskenler.songListNotifier.value)..add(newTrack);
+    Degiskenler.songListNotifier.value =
+        List.from(Degiskenler.songListNotifier.value)..add(newTrack);
 
     final mediaItem = MediaItem(
       id: sira.toString(),
@@ -557,12 +612,54 @@ class AudioService {
   }
 
   static setCurrentTrack(index) {
-    if (index != null) {
-      parca_adi = Degiskenler().listDinle[index]["parca_adi"];
-      seslendiren = Degiskenler().listDinle[index]["seslendiren"];
+    if (index != null && index < parca_listesi.length) {
+      final mediaItem = parca_listesi[index];
+      parca_adi = mediaItem.title;
+      seslendiren = mediaItem.artist ?? "...";
       currentSongTitleNotifier.value = parca_adi;
       currentSongSubTitleNotifier.value = seslendiren;
-      Degiskenler.parcaIndex = Degiskenler().listDinle[index]["sira_no"];
+      Degiskenler.parcaIndex = int.tryParse(mediaItem.id) ?? -1;
+    }
+  }
+
+  static Future<void> playApplinkTrack(adi, ses, yol, sira) async {
+    final mediaItem = MediaItem(
+      id: sira.toString(),
+      album: adi,
+      title: adi,
+      artUri: Uri.parse("${Degiskenler.kaynakYolu}/atesiask/bahar11.jpg"),
+      artist: ses,
+    );
+
+    AudioSource newSource = AudioSource.uri(
+      Uri.parse(yol),
+      tag: mediaItem,
+    );
+
+    try {
+      var currentSources = List<AudioSource>.from(
+          (_audioHandler!.player!.audioSource as ConcatenatingAudioSource)
+              .children);
+
+      int insertIndex = _audioHandler!.player!.currentIndex != null
+          ? _audioHandler!.player!.currentIndex! + 1
+          : currentSources.length;
+          
+      if (insertIndex > currentSources.length) insertIndex = currentSources.length;
+
+      currentSources.insert(insertIndex, newSource);
+
+      final currentQueue = List<MediaItem>.from(parca_listesi);
+      currentQueue.insert(insertIndex, mediaItem);
+      await _audioHandler!.updateQueue(currentQueue);
+
+      await _audioHandler!.setAudioSource(
+        ConcatenatingAudioSource(children: currentSources),
+        initialIndex: insertIndex,
+      );
+      await play();
+    } catch (e) {
+      print("Error playing applink track: $e");
     }
   }
 

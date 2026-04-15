@@ -7,7 +7,7 @@ import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Bildirim çubuğunu gizle ve tam ekran moduna geç (Odaklanmayı artırmak için)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
@@ -32,7 +32,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     if (_showSplash) {
       return MaterialApp(
-        title: 'Biz İdeal Cennetine',
+        title: 'Ateşi Aşk',
         debugShowCheckedModeBanner: false,
         home: SplashScreenWidget(
           onComplete: () {

@@ -15,6 +15,10 @@ class Degiskenler {
   static var liste_link = "baska";
   static var liste_adi = "baska";
 
+  static var listeYuklendi = false;
+  static String? bekleyenHediyeLink;
+  static String? bekleyenHediyeId;
+
   static var currentEpigramNotifier = ValueNotifier<String>('...');
   static var currentImageNotifier = ValueNotifier<String>('');
   static var songListNotifier = ValueNotifier<List<dynamic>>([]);
@@ -32,11 +36,12 @@ class Degiskenler {
   static var showDialogNotifier = ValueNotifier<bool>(false);
   static var isSyncedNotifier = ValueNotifier<bool>(false);
 
-  static var altEkranBoyutNotifier = ValueNotifier<int>(20);
-  static var ustEkranBoyutNotifier = ValueNotifier<int>(80);
+  static var altEkranBoyutNotifier = ValueNotifier<int>(25);
+  static var ustEkranBoyutNotifier = ValueNotifier<int>(75);
   static var ustEkranIndexNotifier = ValueNotifier<int>(0);
   static var sleepTimerRemainingNotifier = ValueNotifier<int>(0);
-  static final ValueNotifier<AppTheme> currentThemeNotifier = ValueNotifier(AppTheme.sukun());
+  static final ValueNotifier<AppTheme> currentThemeNotifier =
+      ValueNotifier(AppTheme.sukun());
 
   static Future<void> saveTheme(AppTheme theme) async {
     final prefs = await SharedPreferences.getInstance();

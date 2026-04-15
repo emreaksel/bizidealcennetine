@@ -32,7 +32,7 @@ void arkaplanIslemleri() async {
   MusicApiService().syncInitialStatus();
 }
 
-void setPlaylist(data) async {
+Future<void> setPlaylist(data, {bool playNow = true}) async {
   print("setPlaylist called with ${data.length} items");
 
   List<dynamic> reversedData = data.reversed.toList();
@@ -61,16 +61,24 @@ void setPlaylist(data) async {
       AudioSource.uri(
         Uri.parse(item['url']),
         tag: MediaItem(
-          id: '${item['sira_no']}',
-          album: item['parca_adi'],
-          title: item['parca_adi'],
-          artist: item['seslendiren'],
-        ),
+            id: '${item['sira_no']}',
+            album: item['parca_adi'],
+            title: item['parca_adi'],
+            artist: item['seslendiren']),
       ),
     );
   }
 
-  await app_audio.AudioService.setPlaylist(playlist);
+  await app_audio.AudioService.setPlaylist(playlist, playNow: playNow);
+
+  if (Degiskenler.bekleyenHediyeLink != null &&
+      Degiskenler.bekleyenHediyeId != null) {
+    hediye_irtibat(
+        Degiskenler.bekleyenHediyeLink, Degiskenler.bekleyenHediyeId);
+    Degiskenler.bekleyenHediyeLink = null;
+    Degiskenler.bekleyenHediyeId = null;
+  }
+
   print("Playlist set successfully");
 }
 
@@ -100,19 +108,34 @@ void handleLink(String? link) {
         link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
     print("replacedLink $link");
 
-    Degiskenler.currentNoticeNotifier.value = link;
-    Degiskenler.showDialogNotifier.value = true;
+    if (link.contains('https://benolanben.com/dinle/')) {
+      var hediye = link.replaceAll('https://benolanben.com/dinle/', '');
+      var parts = hediye.split('&');
+      if (parts.length >= 2) {
+        var linkPart = parts[0];
+        var idPart = parts[1];
+        if (linkPart.isNotEmpty && idPart.isNotEmpty) {
+          if (Degiskenler.listeYuklendi) {
+            hediye_irtibat(linkPart, idPart);
+          } else {
+            Degiskenler.bekleyenHediyeLink = linkPart;
+            Degiskenler.bekleyenHediyeId = idPart;
+          }
+        }
+      }
+    } else {
+      Degiskenler.currentNoticeNotifier.value = link;
+      Degiskenler.showDialogNotifier.value = true;
+    }
   }
 }
 
-Future<void> fetchData_jsonDinlemeListesi(String url, String link) async {
+Future<void> fetchData_jsonDinlemeListesi(String url, String link,
+    {bool playNow = true}) async {
   try {
-    final Future<Map<String, dynamic>> jsonData = compute(getirJsonData, url);
-
-    jsonData.then((jsonData) {
-      List<dynamic> listDinle = jsonData["sesler"];
-      setPlaylist(listDinle);
-    });
+    final Map<String, dynamic> jsonData = await compute(getirJsonData, url);
+    List<dynamic> listDinle = jsonData["sesler"];
+    await setPlaylist(listDinle, playNow: playNow);
   } catch (error) {
     print("Hata oluştu: $error");
   }
@@ -153,7 +176,8 @@ Future<void> fetchData_jsonMenba(String url) async {
           Degiskenler.liste_adi = caption;
           Degiskenler.liste_link = link;
           fetchData_jsonDinlemeListesi(
-              "${Degiskenler.kaynakYolu}kaynak/$link.json", link);
+              "${Degiskenler.kaynakYolu}kaynak/$link.json", link,
+              playNow: false);
         }
       }
 
@@ -248,17 +272,30 @@ void bildirimKontrol(bildirim) async {
 }
 
 void hediye_irtibat(link, id) {
-  compute(getirJsonData, "${Degiskenler.kaynakYolu}kaynak/$link.json")
-      .then((data) {
-    List<dynamic> listDinle = data["sesler"];
-
-    for (var item in listDinle) {
-      if (item['sira_no'].toString() == id.toString()) {
-        app_audio.AudioService.addTrackToPlaylist(item['parca_adi'],
-            item['seslendiren'], item['url'], item['sira_no'], true);
-        Degiskenler.hediyeninIndex = item['sira_no'];
-        break;
-      }
+  bool found = false;
+  for (var item in Degiskenler().listDinle) {
+    if (item['sira_no'].toString() == id.toString()) {
+      found = true;
+      break;
     }
-  });
+  }
+
+  if (found) {
+    app_audio.AudioService.playAtId(int.parse(id.toString()));
+    Degiskenler.hediyeninIndex = int.parse(id.toString());
+  } else {
+    compute(getirJsonData, "${Degiskenler.kaynakYolu}kaynak/$link.json")
+        .then((data) {
+      List<dynamic> listDinle = data["sesler"];
+
+      for (var item in listDinle) {
+        if (item['sira_no'].toString() == id.toString()) {
+          app_audio.AudioService.playApplinkTrack(item['parca_adi'],
+              item['seslendiren'], item['url'], item['sira_no']);
+          Degiskenler.hediyeninIndex = int.parse(item['sira_no'].toString());
+          break;
+        }
+      }
+    });
+  }
 }

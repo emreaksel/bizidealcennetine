@@ -478,11 +478,14 @@ class ShareButton extends StatelessWidget {
           ),
           onPressed: () {
             if (Degiskenler.hediyeninIndex.toInt() != Degiskenler.parcaIndex) {
-              String shareLink = 'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}';
+              String shareLink =
+                  'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}';
               try {
                 for (var item in Degiskenler.songListNotifier.value) {
-                  if (item['sira_no']?.toString() == Degiskenler.parcaIndex.toString()) {
-                    if (item['hyperlink'] != null && item['hyperlink'].toString().isNotEmpty) {
+                  if (item['sira_no']?.toString() ==
+                      Degiskenler.parcaIndex.toString()) {
+                    if (item['hyperlink'] != null &&
+                        item['hyperlink'].toString().isNotEmpty) {
                       shareLink = 'https://benolanben.com/${item['hyperlink']}';
                     }
                     break;
@@ -491,7 +494,7 @@ class ShareButton extends StatelessWidget {
               } catch (e) {
                 print("Share error: $e");
               }
-              
+
               Share.share(shareLink);
             }
           },
@@ -510,7 +513,7 @@ class _LikeButtonState extends State<LikeButton> {
   final MusicApiService _apiService = MusicApiService();
   bool _isLiked = false;
   bool _isLoading = false;
-  
+
   static int _lastCheckedIndex = -1;
   static bool _lastCheckedStatus = false;
 
@@ -533,17 +536,18 @@ class _LikeButtonState extends State<LikeButton> {
         if (mounted) setState(() => _isLiked = _lastCheckedStatus);
         return;
       }
-      
+
       // ANINDA GÜNCELLEME: Global listede varsa veya yoksa direkt oradan anla.
       // İnternete gidip tekrar sormaya gerek yok, yerel liste (myLikes) en güncelidir.
       if (Degiskenler.isSyncedNotifier.value) {
-        bool inLikes = Degiskenler.myLikesNotifier.value.any((liked) => liked['sira_no'].toString() == Degiskenler.parcaIndex.toString());
+        bool inLikes = Degiskenler.myLikesNotifier.value.any((liked) =>
+            liked['sira_no'].toString() == Degiskenler.parcaIndex.toString());
         _lastCheckedIndex = Degiskenler.parcaIndex;
         _lastCheckedStatus = inLikes;
         if (mounted) setState(() => _isLiked = inLikes);
         return;
       }
-      
+
       if (mounted) setState(() => _isLoading = true);
       try {
         final token = await _apiService.storage.read(key: 'jwt_token');
@@ -583,11 +587,14 @@ class _LikeButtonState extends State<LikeButton> {
                   borderRadius: BorderRadius.circular(24)),
               title: Row(
                 children: [
-                  Icon(Icons.important_devices_rounded, color: theme.accentColor),
+                  Icon(Icons.important_devices_rounded,
+                      color: theme.accentColor),
                   const SizedBox(width: 12),
                   Text('Cihaz Eşleştirme',
                       style: TextStyle(
-                          color: theme.textColor, fontWeight: FontWeight.bold, fontSize: 20)),
+                          color: theme.textColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20)),
                 ],
               ),
               content: SingleChildScrollView(
@@ -599,30 +606,39 @@ class _LikeButtonState extends State<LikeButton> {
                       1,
                       InkWell(
                         onTap: () async {
-                          final url = Uri.parse('https://benolanben.com/atesiask');
+                          final url =
+                              Uri.parse('https://benolanben.com/atesiask');
                           try {
-                            await launchUrl(url, mode: LaunchMode.externalApplication);
+                            await launchUrl(url,
+                                mode: LaunchMode.externalApplication);
                           } catch (e) {
                             debugPrint('URL açılamadı: $url, Hata: $e');
                           }
                         },
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
                           decoration: BoxDecoration(
                             color: theme.accentColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: theme.accentColor.withOpacity(0.3), width: 1.5),
+                            border: Border.all(
+                                color: theme.accentColor.withOpacity(0.3),
+                                width: 1.5),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.open_in_browser_rounded, color: theme.accentColor, size: 24),
+                              Icon(Icons.open_in_browser_rounded,
+                                  color: theme.accentColor, size: 24),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'benolanben.com/atesiask\nAdresine gitmek için Tıklayın', 
-                                  style: TextStyle(color: theme.accentColor, fontWeight: FontWeight.w700, fontSize: 13, height: 1.4)
-                                ),
+                                    'benolanben.com/atesiask\nAdresine gitmek için Tıklayın',
+                                    style: TextStyle(
+                                        color: theme.accentColor,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        height: 1.4)),
                               ),
                             ],
                           ),
@@ -631,22 +647,31 @@ class _LikeButtonState extends State<LikeButton> {
                       theme,
                     ),
                     _buildStep(
-                      2, 
-                      Text('Tarayıcıda açılan sayfada sağ üstten Apple veya Google hesabınızla giriş yapın.', 
-                           style: TextStyle(color: theme.textColor.withOpacity(0.85), fontSize: 14, height: 1.4)), 
+                      2,
+                      Text(
+                          'Tarayıcıda açılan sayfada sağ üstten Apple veya Google hesabınızla giriş yapın.',
+                          style: TextStyle(
+                              color: theme.textColor.withOpacity(0.85),
+                              fontSize: 14,
+                              height: 1.4)),
                       theme,
                     ),
                     _buildStep(
                       3,
                       RichText(
                         text: TextSpan(
-                          style: TextStyle(color: theme.textColor.withOpacity(0.85), fontSize: 14, height: 1.4),
+                          style: TextStyle(
+                              color: theme.textColor.withOpacity(0.85),
+                              fontSize: 14,
+                              height: 1.4),
                           children: [
-                            TextSpan(text: 'Ekranda sol üstteki senkronizasyon ('),
+                            TextSpan(
+                                text: 'Ekranda sol üstteki senkronizasyon ('),
                             WidgetSpan(
-                              alignment: PlaceholderAlignment.middle,
-                              child: Icon(Icons.cloud_sync_rounded, size: 18, color: theme.textColor.withOpacity(0.9))
-                            ),
+                                alignment: PlaceholderAlignment.middle,
+                                child: Icon(Icons.cloud_sync_rounded,
+                                    size: 18,
+                                    color: theme.textColor.withOpacity(0.9))),
                             TextSpan(text: ') simgesine dokunun.'),
                           ],
                         ),
@@ -655,8 +680,12 @@ class _LikeButtonState extends State<LikeButton> {
                     ),
                     _buildStep(
                       4,
-                      Text('Ekranda beliren 6 haneli cihaz kodunu aşağıdaki alana girin.', 
-                           style: TextStyle(color: theme.textColor.withOpacity(0.85), fontSize: 14, height: 1.4)),
+                      Text(
+                          'Ekranda beliren 6 haneli cihaz kodunu aşağıdaki alana girin.',
+                          style: TextStyle(
+                              color: theme.textColor.withOpacity(0.85),
+                              fontSize: 14,
+                              height: 1.4)),
                       theme,
                     ),
                     const SizedBox(height: 24),
@@ -684,7 +713,8 @@ class _LikeButtonState extends State<LikeButton> {
                                 color: theme.textColor.withOpacity(0.1))),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: theme.accentColor, width: 2)),
+                            borderSide:
+                                BorderSide(color: theme.accentColor, width: 2)),
                       ),
                     ),
                     if (isDialogLoading)
@@ -703,16 +733,19 @@ class _LikeButtonState extends State<LikeButton> {
                   onPressed:
                       isDialogLoading ? null : () => Navigator.pop(context),
                   child: Text('İptal',
-                      style:
-                          TextStyle(color: theme.textColor.withOpacity(0.5), fontSize: 15)),
+                      style: TextStyle(
+                          color: theme.textColor.withOpacity(0.5),
+                          fontSize: 15)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.accentColor,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                   ),
                   onPressed: isDialogLoading
                       ? null
@@ -742,7 +775,8 @@ class _LikeButtonState extends State<LikeButton> {
                           }
                         },
                   child: Text('Doğrula',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
               ],
             );
@@ -759,7 +793,8 @@ class _LikeButtonState extends State<LikeButton> {
           Container(
             width: 26,
             height: 26,
-            margin: const EdgeInsets.only(top: 2), // Metinle hizalamak için ufak pay
+            margin: const EdgeInsets.only(
+                top: 2), // Metinle hizalamak için ufak pay
             decoration: BoxDecoration(
                 color: theme.accentColor.withOpacity(0.15),
                 shape: BoxShape.circle),
@@ -887,7 +922,8 @@ class AudioControlButtons extends StatelessWidget {
                     Column(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 3.0),
                           child: Row(
                             children: [
                               LikeButton(),
