@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart'; // kIsWeb için
 import 'dart:io' show Platform; // Sadece mobile/desktop için
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:uuid/uuid.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
 
 class MusicApiService {
@@ -38,7 +41,7 @@ class MusicApiService {
 
   String _getDevicePlatform() {
     if (kIsWeb) {
-      return 'web-debug';
+      return 'web';
     }
     if (Platform.isAndroid) return 'android';
     if (Platform.isIOS) return 'ios';
@@ -46,6 +49,53 @@ class MusicApiService {
     if (Platform.isMacOS) return 'macos';
     if (Platform.isLinux) return 'linux';
     return 'unknown';
+  }
+
+  /// Cihaz için kalıcı ve benzersiz bir UID oluşturur/getirir ve detaylı bilgileri döner
+  Future<Map<String, dynamic>> _getDeviceInfo() async {
+    final deviceInfo = DeviceInfoPlugin();
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    String? uid = await storage.read(key: 'device_uid');
+    if (uid == null) {
+      uid = const Uuid().v4();
+      await storage.write(key: 'device_uid', value: uid);
+    }
+
+    Map<String, dynamic> detail = {
+      'uid': uid,
+      'appVersion': packageInfo.version,
+      'buildNumber': packageInfo.buildNumber,
+      'platform': _getDevicePlatform(),
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    try {
+      if (kIsWeb) {
+        final webInfo = await deviceInfo.webBrowserInfo;
+        detail['browser'] = webInfo.browserName.name;
+        detail['language'] = webInfo.language;
+      } else if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        detail['model'] = androidInfo.model;
+        detail['brand'] = androidInfo.brand;
+        detail['osVersion'] = androidInfo.version.release;
+        detail['sdkVersion'] = androidInfo.version.sdkInt;
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        detail['model'] = iosInfo.utsname.machine;
+        detail['osVersion'] = iosInfo.systemVersion;
+        detail['name'] = iosInfo.name;
+      } else if (Platform.isWindows) {
+        final winInfo = await deviceInfo.windowsInfo;
+        detail['computerName'] = winInfo.computerName;
+        detail['osVersion'] = winInfo.releaseId;
+      }
+    } catch (e) {
+      print('Cihaz bilgileri alınırken hata: $e');
+    }
+
+    return detail;
   }
   // ─────────────────────────────────────────────────────────────────────────────
   // 1. CİHAZ EŞLEŞTİRME & OTURUM İŞLEMLERİ
@@ -210,12 +260,22 @@ class MusicApiService {
   }) async {
     try {
       final headers = await _getOptionalHeaders();
-      final device = _getDevicePlatform(); // ✅ artık web'de de çalışır
+      final deviceInfo = await _getDeviceInfo();
+
+      // Platform, UID ve Device (model + os) alanlarını ayırıyoruz
+      final String uid = deviceInfo['uid'] ?? 'unknown';
+      final String platform = deviceInfo['platform'] ?? 'unknown';
+      
+      String model = deviceInfo['model'] ?? deviceInfo['browser'] ?? 'Unknown Device';
+      String os = deviceInfo['osVersion'] ?? 'Unknown OS';
+      String deviceString = "$model - $os";
 
       final payload = {
         'musicId': musicId.toString(),
         'listenDuration': listenDuration,
-        'device': device,
+        'uid': uid,
+        'platform': platform,
+        'device': deviceString,
       };
 
       if (timestamp != null) {
