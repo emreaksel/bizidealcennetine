@@ -277,22 +277,18 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
-        MediaControl.rewind,
         if (playing) MediaControl.pause else MediaControl.play,
-        MediaControl.fastForward,
         MediaControl.skipToNext,
         MediaControl.stop,
       ],
       systemActions: const {
         MediaAction.seek,
-        MediaAction.seekForward,
-        MediaAction.seekBackward,
         MediaAction.skipToNext,
         MediaAction.skipToPrevious,
         MediaAction.setShuffleMode,
         MediaAction.setRepeatMode,
       },
-      androidCompactActionIndices: const [0, 2, 4],
+      androidCompactActionIndices: const [0, 1, 2],
       processingState: processingState,
       playing: playing,
       updatePosition: _player!.position,
@@ -487,7 +483,7 @@ class AudioService {
       config: audio_service.AudioServiceConfig(
         androidNotificationChannelId: 'com.ea.bizidealcennetine.channel.audio',
         androidNotificationChannelName: 'Aşk Olsun',
-        androidNotificationOngoing: true,
+        androidNotificationOngoing: false,
         androidStopForegroundOnPause: true,
       ),
     );
