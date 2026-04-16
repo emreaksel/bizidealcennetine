@@ -1,7 +1,7 @@
 # ============================================================
 # ADIM 4 — TestFlight'a Otomatik Yükle
 # ============================================================
-name: "Adım 4 — TestFlight Upload"
+name: "TestFlight Upload"
 
 on:
   workflow_dispatch:
@@ -18,6 +18,10 @@ jobs:
       - name: "Repoyu Klonla"
         uses: actions/checkout@v4
 
+      - name: "Xcode Sürümünü Ayarla"
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable' # Sunucudaki en güncel kararlı Xcode (Xcode 26+) sürümünü zorlar
       # ----------------------------------------------------------
       # 1. Sertifika
       # ----------------------------------------------------------
