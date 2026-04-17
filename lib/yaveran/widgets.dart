@@ -12,18 +12,23 @@ import 'MusicApiService.dart';
 import 'ui_support.dart';
 import 'app_theme.dart';
 
-double calculateIconSize(BuildContext context) {
-  double screenHeight = MediaQuery.of(context).size.height;
-  double iconSize =
-      screenHeight * (Degiskenler.altEkranBoyutNotifier.value / 100) * 0.19;
-  return iconSize;
-}
+// Responsive Tasarım Yardımcısı
+class UISize {
+  static const double textMultiplier = 0.087;
+  static const double iconMultiplier = 0.17;
 
-double calculateFontSize(BuildContext context) {
-  double screenHeight = MediaQuery.of(context).size.height;
-  double fontSize =
-      screenHeight * (Degiskenler.altEkranBoyutNotifier.value / 100) * 0.11;
-  return fontSize;
+  static double calculate(BuildContext context, double multiplier,
+      {double min = 10.0, double max = 50.0}) {
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double panelHeight =
+        screenHeight * (Degiskenler.altEkranBoyutNotifier.value / 100);
+    return (panelHeight * multiplier).clamp(min, max);
+  }
+
+  static double fontSize(BuildContext context) =>
+      calculate(context, textMultiplier, min: 14.0, max: 24.0);
+  static double iconSize(BuildContext context) =>
+      calculate(context, iconMultiplier, min: 24.0, max: 48.0);
 }
 
 class PlayButton extends StatelessWidget {
@@ -36,8 +41,8 @@ class PlayButton extends StatelessWidget {
         switch (value) {
           case ButtonState.loading:
             return Container(
-              width: calculateIconSize(context) * 0.8,
-              height: calculateIconSize(context) * 0.8,
+              width: UISize.iconSize(context) * 0.8,
+              height: UISize.iconSize(context) * 0.8,
               padding: const EdgeInsets.all(8.0),
               child: CircularProgressIndicator(
                 strokeWidth: 3,
@@ -48,8 +53,8 @@ class PlayButton extends StatelessWidget {
             return IconButton(
               icon: SvgPicture.asset(
                 'assets/icons/play.svg',
-                width: calculateIconSize(context) * 0.8,
-                height: calculateIconSize(context) * 0.8,
+                width: UISize.iconSize(context) * 0.8,
+                height: UISize.iconSize(context) * 0.8,
               ),
               onPressed: () {
                 AudioService.play();
@@ -59,8 +64,8 @@ class PlayButton extends StatelessWidget {
             return IconButton(
               icon: SvgPicture.asset(
                 'assets/icons/pause.svg',
-                width: calculateIconSize(context) * 0.8,
-                height: calculateIconSize(context) * 0.8,
+                width: UISize.iconSize(context) * 0.8,
+                height: UISize.iconSize(context) * 0.8,
               ),
               onPressed: () {
                 AudioService.pause();
@@ -86,7 +91,7 @@ class CurrentSongTitle extends StatelessWidget {
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: calculateFontSize(context),
+                  fontSize: UISize.fontSize(context),
                   color: theme.textColor,
                 ),
               ),
@@ -112,7 +117,7 @@ class CurrentSongSubTitle extends StatelessWidget {
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: calculateFontSize(context),
+                  fontSize: UISize.fontSize(context),
                   color: theme.textColor.withOpacity(0.6),
                 ),
               ),
@@ -176,11 +181,11 @@ class RepeatButton extends StatelessWidget {
             return IconButton(
                 icon: SvgPicture.asset(
                   'assets/icons/shuffle.svg',
-                  width: calculateIconSize(context),
-                  height: calculateIconSize(context),
+                  width: UISize.iconSize(context),
+                  height: UISize.iconSize(context),
                   //color: Colors.red, // İstenilen rengi belirtin
                 ),
-                iconSize: calculateIconSize(context),
+                iconSize: UISize.iconSize(context),
                 onPressed: () {
                   AudioService.repeat();
                 });
@@ -188,11 +193,11 @@ class RepeatButton extends StatelessWidget {
             return IconButton(
                 icon: SvgPicture.asset(
                   'assets/icons/repeat.svg',
-                  width: calculateIconSize(context),
-                  height: calculateIconSize(context),
+                  width: UISize.iconSize(context),
+                  height: UISize.iconSize(context),
                   //color: Colors.red, // İstenilen rengi belirtin
                 ),
-                iconSize: calculateIconSize(context),
+                iconSize: UISize.iconSize(context),
                 onPressed: () {
                   AudioService.repeat();
                 });
@@ -211,8 +216,8 @@ class PreviousSongButton extends StatelessWidget {
         return IconButton(
             icon: SvgPicture.asset(
               'assets/icons/previous.svg',
-              width: calculateIconSize(context),
-              height: calculateIconSize(context),
+              width: UISize.iconSize(context),
+              height: UISize.iconSize(context),
               colorFilter: value == ButtonState.loading
                   ? ColorFilter.mode(
                       Degiskenler.currentThemeNotifier.value.textColor
@@ -220,7 +225,7 @@ class PreviousSongButton extends StatelessWidget {
                       BlendMode.srcIn)
                   : null,
             ),
-            iconSize: calculateIconSize(context),
+            iconSize: UISize.iconSize(context),
             onPressed: value == ButtonState.loading
                 ? null
                 : () {
@@ -240,8 +245,8 @@ class NextSongButton extends StatelessWidget {
         return IconButton(
             icon: SvgPicture.asset(
               'assets/icons/next.svg',
-              width: calculateIconSize(context),
-              height: calculateIconSize(context),
+              width: UISize.iconSize(context),
+              height: UISize.iconSize(context),
               colorFilter: value == ButtonState.loading
                   ? ColorFilter.mode(
                       Degiskenler.currentThemeNotifier.value.textColor
@@ -249,7 +254,7 @@ class NextSongButton extends StatelessWidget {
                       BlendMode.srcIn)
                   : null,
             ),
-            iconSize: calculateIconSize(context),
+            iconSize: UISize.iconSize(context),
             onPressed: value == ButtonState.loading
                 ? null
                 : () {
@@ -266,8 +271,8 @@ class ListButton extends StatelessWidget {
     return IconButton(
         icon: SvgPicture.asset(
           'assets/icons/playlist.svg',
-          width: calculateIconSize(context) * 0.8,
-          height: calculateIconSize(context) * 0.8,
+          width: UISize.iconSize(context) * 0.8,
+          height: UISize.iconSize(context) * 0.8,
           //color: Colors.red, // İstenilen rengi belirtin
         ),
         onPressed: () {
@@ -446,8 +451,8 @@ class BackButton extends StatelessWidget {
     return IconButton(
         icon: SvgPicture.asset(
           'assets/icons/back.svg',
-          width: calculateIconSize(context),
-          height: calculateIconSize(context),
+          width: UISize.iconSize(context),
+          height: UISize.iconSize(context),
           //color: Colors.red, // İstenilen rengi belirtin
         ),
         onPressed: () {
@@ -468,8 +473,8 @@ class ShareButton extends StatelessWidget {
             scale: 1.15, // Görsel ağırlığı dengelemek için hafifçe büyüt
             child: SvgPicture.asset(
               'assets/icons/bird.svg',
-              width: calculateIconSize(context),
-              height: calculateIconSize(context),
+              width: UISize.iconSize(context),
+              height: UISize.iconSize(context),
               colorFilter: ColorFilter.mode(
                 theme.textColor.withOpacity(0.7), // Daha belirgin (0.5 -> 0.7)
                 BlendMode.srcIn,
@@ -852,8 +857,8 @@ class _LikeButtonState extends State<LikeButton> {
         return IconButton(
           icon: _isLoading
               ? SizedBox(
-                  width: calculateIconSize(context) * 0.5,
-                  height: calculateIconSize(context) * 0.5,
+                  width: UISize.iconSize(context) * 0.5,
+                  height: UISize.iconSize(context) * 0.5,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: theme.accentColor,
@@ -865,15 +870,15 @@ class _LikeButtonState extends State<LikeButton> {
                     _isLiked
                         ? 'assets/icons/kalp_yanan.svg'
                         : 'assets/icons/kalp.svg',
-                    width: calculateIconSize(context),
-                    height: calculateIconSize(context),
+                    width: UISize.iconSize(context),
+                    height: UISize.iconSize(context),
                     colorFilter: _isLiked
                         ? ColorFilter.mode(theme.accentColor, BlendMode.srcIn)
                         : ColorFilter.mode(
                             theme.textColor.withOpacity(0.7), BlendMode.srcIn),
                   ),
                 ),
-          iconSize: calculateIconSize(context),
+          iconSize: UISize.iconSize(context),
           onPressed: _isLoading ? null : _handleLikeToggle,
         );
       },

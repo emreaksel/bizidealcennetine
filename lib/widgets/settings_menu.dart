@@ -148,6 +148,222 @@ class SettingsMenu extends StatelessWidget {
     );
   }
 
+  void _showContactForm(BuildContext context, AppTheme theme) {
+    final _formKey = GlobalKey<FormState>();
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController messageController = TextEditingController();
+    String selectedReason = "Teşekkür";
+
+    final List<String> reasons = [
+      "Teşekkür",
+      "Teknik Sorun",
+      "İçerik Hakkında",
+      "Diğer",
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: BoxDecoration(
+            color: theme.backgroundColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+              24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.textColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Icon(Icons.mail_outline_rounded,
+                          color: theme.accentColor, size: 28),
+                      const SizedBox(width: 12),
+                      Text(
+                        "İrtibat",
+                        style: TextStyle(
+                          color: theme.textColor,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  _buildLabel("Sebep", theme),
+                  DropdownButtonFormField<String>(
+                    value: selectedReason,
+                    dropdownColor: theme.cardColor,
+                    style: TextStyle(color: theme.textColor),
+                    decoration: _inputDecoration(theme),
+                    items: reasons.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        selectedReason = newValue!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _buildLabel("İsim", theme),
+                  TextFormField(
+                    controller: nameController,
+                    style: TextStyle(color: theme.textColor),
+                    decoration: _inputDecoration(theme, hint: "İsim"),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Lütfen isim giriniz.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _buildLabel("E-posta Adresiniz", theme),
+                  TextFormField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: TextStyle(color: theme.textColor),
+                    decoration:
+                        _inputDecoration(theme, hint: "ornek@email.com"),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Lütfen e-posta adresinizi girin.';
+                      }
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                          .hasMatch(value)) {
+                        return 'Lütfen geçerli bir e-posta girin.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _buildLabel("Mesajınız", theme),
+                  TextFormField(
+                    controller: messageController,
+                    maxLines: 5,
+                    style: TextStyle(color: theme.textColor),
+                    decoration: _inputDecoration(theme, hint: "Mesajınız..."),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Lütfen mesajınızı yazın.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.accentColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          bool success = await _apiService.sendContactMessage(
+                            name: nameController.text,
+                            email: emailController.text,
+                            message: messageController.text,
+                            reason: selectedReason,
+                          );
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Mesajınız başarıyla iletildi.'
+                                    : 'Mesaj gönderilirken bir hata oluştu.'),
+                                backgroundColor:
+                                    success ? Colors.green : Colors.redAccent,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text(
+                        "Mesajı Gönder",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text, AppTheme theme) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: theme.textColor.withOpacity(0.7),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(AppTheme theme, {String? hint}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: theme.subTextColor.withOpacity(0.5)),
+      filled: true,
+      fillColor: theme.cardColor,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: theme.textColor.withOpacity(0.05)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: theme.accentColor, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AppTheme>(
@@ -295,6 +511,32 @@ class SettingsMenu extends StatelessWidget {
 
               const SizedBox(height: 24),
 
+              // Contact Section
+              GestureDetector(
+                onTap: () => _showContactForm(context, theme),
+                child: _buildSettingSection(
+                  theme,
+                  "İrtibat",
+                  Icons.chat_bubble_outline_rounded,
+                  Row(
+                    children: [
+                      Text(
+                        "Mesajınızı bize iletin",
+                        style: TextStyle(
+                          color: theme.subTextColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: theme.accentColor, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // Theme Section
               _buildSettingSection(
                 theme,
@@ -362,9 +604,9 @@ class SettingsMenu extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 48),
               Text(
-                "Ateş-i Aşk",
+                "Âteş-i Aşk",
                 style: TextStyle(
                     color: theme.subTextColor.withOpacity(0.5), fontSize: 12),
               ),

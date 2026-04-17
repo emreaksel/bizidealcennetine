@@ -301,4 +301,60 @@ class MusicApiService {
       return false;
     }
   }
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 5. TOPLU VERİ ÇEKME (MENBA, SOZLER, IMAGES)
+  // ─────────────────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> fetchAtesiAskSub() async {
+    try {
+      final headers = await _getOptionalHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/atesiasksub'),
+        headers: headers,
+        body: jsonEncode({}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      } else {
+        print('fetchAtesiAskSub başarısız: ${response.statusCode}');
+        return {};
+      }
+    } catch (e) {
+      print('Ağ hatası (fetchAtesiAskSub): $e');
+      return {};
+    }
+  }
+
+  // 6. İRTİBAT (İLETİŞİM) İŞLEMLERİ
+  // ─────────────────────────────────────────────────────────────────────────────
+  Future<bool> sendContactMessage({
+    required String name,
+    required String email,
+    required String message,
+    required String reason,
+  }) async {
+    try {
+      final headers = await _getOptionalHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/irtibat'),
+        headers: headers,
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'message': message,
+          'reason': reason,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        print('İrtibat gönderimi başarısız: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Ağ hatası (sendContactMessage): $e');
+      return false;
+    }
+  }
 }

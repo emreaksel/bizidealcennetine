@@ -13,7 +13,7 @@ import 'MusicApiService.dart';
 
 final appLinks = AppLinks();
 
-void arkaplanIslemleri() async {
+Future<void> arkaplanIslemleri() async {
   Degiskenler.hazirlaniyor = true;
   await Degiskenler.loadTheme();
 
@@ -24,12 +24,77 @@ void arkaplanIslemleri() async {
     print("Error initializing AudioService: $e");
   }
 
-  fetchData_jsonMenba("${Degiskenler.kaynakYolu}kaynak/menba.json");
-  fetchData_jsonFotograflar("${Degiskenler.kaynakYolu}medya/images.json");
-  fetchData_jsonSozler("${Degiskenler.kaynakYolu}kaynak/sozler.json");
+  // Tek bir istek ile tüm verileri alıyoruz
+  try {
+    final combinedData = await MusicApiService().fetchAtesiAskSub();
+    if (combinedData.containsKey("isaretler")) {
+      final isaretler = combinedData["isaretler"];
+      
+      // 1. Menba İşlemleri
+      if (isaretler.containsKey("menba")) {
+        processMenbaData(isaretler["menba"]);
+      }
+
+      // 2. Fotoğraf İşlemleri
+      if (isaretler.containsKey("resimler")) {
+        processImagesData(isaretler["resimler"]);
+      }
+
+      // 3. Söz İşlemleri
+      if (isaretler.containsKey("sozler")) {
+        processSozlerData(isaretler["sozler"]);
+      }
+    }
+  } catch (e) {
+    print("Combined fetch error: $e");
+    // Hata durumunda eski usul devam etsin (yedek plan)
+    await fetchData_jsonMenba("${Degiskenler.kaynakYolu}kaynak/menba.json");
+    fetchData_jsonFotograflar("${Degiskenler.kaynakYolu}medya/images.json");
+    fetchData_jsonSozler("${Degiskenler.kaynakYolu}kaynak/sozler.json");
+  }
 
   Degiskenler.hazirlaniyor = false;
   MusicApiService().syncInitialStatus();
+}
+
+void processMenbaData(Map<String, dynamic> jsonData) {
+  int dinlemeListesiID = jsonData["aktifliste"]["dinlemeListesiID"];
+  List<dynamic> dinlemeListeleri = jsonData["dinlemeListeleri"];
+  for (var item in dinlemeListeleri) {
+    int id = item["id"];
+    String link = item["link"];
+    String caption = item["caption"];
+    if (id == dinlemeListesiID) {
+      Degiskenler.liste_adi = caption;
+      Degiskenler.liste_link = link;
+      fetchData_jsonDinlemeListesi(
+          "${Degiskenler.kaynakYolu}kaynak/$link.json", link,
+          playNow: false);
+    }
+  }
+
+  Map<String, dynamic> bildirim = jsonData["bildirim"];
+  bildirimKontrol(bildirim);
+
+  final degiskenler = Degiskenler();
+  degiskenler.versionMenba = jsonData["versiyon"];
+  Degiskenler.dinlemeListeleriNotifier.value = dinlemeListeleri;
+}
+
+void processImagesData(List<dynamic> fotograflarListesi) {
+  if (fotograflarListesi.isNotEmpty) {
+    final degiskenler = Degiskenler();
+    degiskenler.listFotograflar = fotograflarListesi;
+    UI_support.changeImage();
+  }
+}
+
+void processSozlerData(List<dynamic> sozlerListesi) {
+  if (sozlerListesi.isNotEmpty) {
+    final degiskenler = Degiskenler();
+    degiskenler.listSozler = sozlerListesi;
+    UI_support.changeEpigram();
+  }
 }
 
 Future<void> setPlaylist(data, {bool playNow = true}) async {
@@ -84,6 +149,11 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
 
 Future<void> initUniLinks(Function(String) handleLinkCallback) async {
   try {
+    // iOS cold start durumunda native bridge'in hazır olması için kısa bir süre bekliyoruz
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
     final initialLink = await appLinks.getInitialLink();
     print("initialLink $initialLink");
 
@@ -164,30 +234,28 @@ Future<void> fetchData_jsonFotograflar(String url) async {
 
 Future<void> fetchData_jsonMenba(String url) async {
   try {
-    final Future<Map<String, dynamic>> jsonData = compute(getirJsonData, url);
-    jsonData.then((jsonData) {
-      int dinlemeListesiID = jsonData["aktifliste"]["dinlemeListesiID"];
-      List<dynamic> dinlemeListeleri = jsonData["dinlemeListeleri"];
-      for (var item in dinlemeListeleri) {
-        int id = item["id"];
-        String link = item["link"];
-        String caption = item["caption"];
-        if (id == dinlemeListesiID) {
-          Degiskenler.liste_adi = caption;
-          Degiskenler.liste_link = link;
-          fetchData_jsonDinlemeListesi(
-              "${Degiskenler.kaynakYolu}kaynak/$link.json", link,
-              playNow: false);
-        }
+    final Map<String, dynamic> jsonData = await compute(getirJsonData, url);
+    int dinlemeListesiID = jsonData["aktifliste"]["dinlemeListesiID"];
+    List<dynamic> dinlemeListeleri = jsonData["dinlemeListeleri"];
+    for (var item in dinlemeListeleri) {
+      int id = item["id"];
+      String link = item["link"];
+      String caption = item["caption"];
+      if (id == dinlemeListesiID) {
+        Degiskenler.liste_adi = caption;
+        Degiskenler.liste_link = link;
+        await fetchData_jsonDinlemeListesi(
+            "${Degiskenler.kaynakYolu}kaynak/$link.json", link,
+            playNow: false);
       }
+    }
 
-      Map<String, dynamic> bildirim = jsonData["bildirim"];
-      bildirimKontrol(bildirim);
+    Map<String, dynamic> bildirim = jsonData["bildirim"];
+    bildirimKontrol(bildirim);
 
-      final degiskenler = Degiskenler();
-      degiskenler.versionMenba = jsonData["versiyon"];
-      Degiskenler.dinlemeListeleriNotifier.value = dinlemeListeleri;
-    });
+    final degiskenler = Degiskenler();
+    degiskenler.versionMenba = jsonData["versiyon"];
+    Degiskenler.dinlemeListeleriNotifier.value = dinlemeListeleri;
   } catch (error) {
     print("Hata oluştu: $error");
   }

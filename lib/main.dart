@@ -13,11 +13,12 @@ void main() async {
 
   runApp(MyApp());
 
-  if (!Degiskenler.hazirlaniyor) {
-    arkaplanIslemleri();
-  }
+  // Önce linkleri kontrol et (iOS cold start için kritik)
+  await initUniLinks(handleLink);
 
-  initUniLinks(handleLink);
+  if (!Degiskenler.hazirlaniyor) {
+    await arkaplanIslemleri();
+  }
 }
 
 class MyApp extends StatefulWidget {
