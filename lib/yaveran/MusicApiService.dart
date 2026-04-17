@@ -273,7 +273,7 @@ class MusicApiService {
       final payload = {
         'musicId': musicId.toString(),
         'listenDuration': listenDuration,
-        'uid': uid,
+        'bodyUid': uid,
         'platform': platform,
         'device': deviceString,
       };
