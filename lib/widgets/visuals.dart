@@ -6,12 +6,10 @@ import 'package:text_scroll/text_scroll.dart';
 import '../yaveran/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
 import '../yaveran/HttpService.dart';
+import 'bird_flight.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:async';
-import 'dart:ui';
-import 'package:flutter/material.dart';
 
 class SpiritualLoader extends StatefulWidget {
   final bool isLoading;
@@ -38,7 +36,6 @@ class _SpiritualLoaderState extends State<SpiritualLoader>
     _renderOverlay = widget.isLoading;
     _isVisible = widget.isLoading;
 
-    // Suyun dalgalanma hızı
     _rippleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 4000),
@@ -98,8 +95,6 @@ class _SpiritualLoaderState extends State<SpiritualLoader>
                     ),
                   ),
                 ),
-
-                // Sadece hiçlikten doğan dalgalar var, katı bir merkez yok
                 Center(
                   child: AnimatedBuilder(
                     animation: _rippleController,
@@ -123,18 +118,13 @@ class _SpiritualLoaderState extends State<SpiritualLoader>
     return List.generate(_waveCount, (index) {
       final double phase =
           (_rippleController.value + (index / _waveCount)) % 1.0;
-
-      // Dalga merkezden (0'dan) dışarıya (200px'e) doğru büyür
       final double easeOutPhase = Curves.easeOut.transform(phase);
       final double currentSize = easeOutPhase * 200;
 
-      // Saydamlık yönetimi (Hiçlikten doğuş ve kayboluş)
       double opacity = 0.0;
       if (easeOutPhase < 0.15) {
-        // İlk %15'lik kısımda şeffaflık 0'dan 1'e yumuşakça çıkar (belirme anı)
         opacity = easeOutPhase / 0.15;
       } else {
-        // Geri kalan %85'lik kısımda 1'den 0'a inerek sönümlenir
         opacity = 1.0 - ((easeOutPhase - 0.15) / 0.85);
       }
 
@@ -144,7 +134,6 @@ class _SpiritualLoaderState extends State<SpiritualLoader>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            // Rengi ve çizgiyi iyice yumuşattık
             color: baseColor.withOpacity(opacity * 0.4),
             width: 1.0 + (opacity * 1.5),
           ),
@@ -163,17 +152,26 @@ class KenBurnsViewWidget extends StatefulWidget {
 }
 
 class _KenBurnsViewWidgetState extends State<KenBurnsViewWidget> {
+  final GlobalKey<BirdFlightOverlayState> _birdKey = GlobalKey();
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.black,
       child: Stack(
         children: [
-          KenBurns(
-              minAnimationDuration: Duration(milliseconds: 10000),
-              maxAnimationDuration: Duration(milliseconds: 13000),
-              maxScale: 1.3,
-              child: Base64ImageWidget()),
+          GestureDetector(
+            onTapDown: (details) => _birdKey.currentState?.spawnBirds(
+              count: 6, 
+              position: details.localPosition
+            ),
+            child: KenBurns(
+                minAnimationDuration: const Duration(milliseconds: 10000),
+                maxAnimationDuration: const Duration(milliseconds: 13000),
+                maxScale: 1.3,
+                child: Base64ImageWidget()),
+          ),
+          BirdFlightOverlay(key: _birdKey),
           Positioned(
             bottom: 0,
             left: 0,
@@ -254,8 +252,7 @@ class AkanYazi extends StatelessWidget {
                 },
                 blendMode: BlendMode.dstIn,
                 child: Material(
-                  type: MaterialType
-                      .transparency, // ← TextScroll'un beyaz arka planını ezer
+                  type: MaterialType.transparency,
                   child: TextScroll(
                     setEpigram(title),
                     mode: TextScrollMode.endless,

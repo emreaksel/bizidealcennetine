@@ -559,24 +559,39 @@ class _LikeButtonState extends State<LikeButton> {
   }
 
   Future<void> _checkLikeStatus() async {
+    if (!mounted) return;
+
     if (Degiskenler.parcaIndex != -1) {
+      // Eğer zaten bu şarkıyı kontrol ettiysek tekrar sorma
       if (_lastCheckedIndex == Degiskenler.parcaIndex) {
         if (mounted) setState(() => _isLiked = _lastCheckedStatus);
         return;
       }
 
-      // ANINDA GÜNCELLEME: Global listede varsa veya yoksa direkt oradan anla.
-      // İnternete gidip tekrar sormaya gerek yok, yerel liste (myLikes) en güncelidir.
+      // ŞARKı DEĞİŞTİ: Yeni şarkı kontrol edilirken butonu hemen sıfırla (Sticky state önleyici)
+      if (mounted) {
+        setState(() {
+          _isLiked = false; 
+          _isLoading = true;
+        });
+      }
+
+      // 1. Senkronize liste üzerinden hızlı kontrol (İnternet gerekmez)
       if (Degiskenler.isSyncedNotifier.value) {
         bool inLikes = Degiskenler.myLikesNotifier.value.any((liked) =>
             liked['sira_no'].toString() == Degiskenler.parcaIndex.toString());
+        
         _lastCheckedIndex = Degiskenler.parcaIndex;
         _lastCheckedStatus = inLikes;
-        if (mounted) setState(() => _isLiked = inLikes);
+        
+        if (mounted) {
+          setState(() {
+            _isLiked = inLikes;
+            _isLoading = false;
+          });
+        }
         return;
       }
-
-      if (mounted) setState(() => _isLoading = true);
       try {
         final token = await _apiService.storage.read(key: 'jwt_token');
         if (token != null) {
@@ -858,34 +873,9 @@ class _LikeButtonState extends State<LikeButton> {
         });
 
         try {
-          // Beğenme işlemi yapıldıysa konfeti şovunu başlat
+          // Beğenme işlemi yapıldıysa kuşları uçur (30 saniye)
           if (_isLiked) {
-            final size = MediaQuery.of(context).size;
-            final random = math.Random();
-            final int totalExplosions = 3 + random.nextInt(3);
-
-            void explode({int? count}) {
-              Degiskenler.confettiTriggerNotifier.value = ConfettiTriggerData(
-                Offset(
-                  size.width * (0.1 + random.nextDouble() * 0.8),
-                  size.height * (0.1 + random.nextDouble() * 0.4),
-                ),
-                particleCount: count,
-              );
-            }
-
-            explode();
-
-            for (int i = 1; i < totalExplosions; i++) {
-              bool isLast = (i == totalExplosions - 1);
-              int delayMs = isLast
-                  ? 4000 + random.nextInt(2001)
-                  : 500 + random.nextInt(3001);
-
-              Future.delayed(Duration(milliseconds: delayMs), () {
-                explode(count: isLast ? 66 : null);
-              });
-            }
+            Degiskenler.birdTriggerNotifier.value = true;
           }
 
           final success = await _apiService.toggleLike(Degiskenler.parcaIndex);

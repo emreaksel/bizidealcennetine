@@ -42,6 +42,7 @@ class Degiskenler {
   static var showDialogNotifier = ValueNotifier<bool>(false);
   static var isSyncedNotifier = ValueNotifier<bool>(false);
   static var confettiTriggerNotifier = ValueNotifier<ConfettiTriggerData?>(null);
+  static var birdTriggerNotifier = ValueNotifier<bool>(false);
 
   static var altEkranBoyutNotifier = ValueNotifier<int>(25);
   static var ustEkranBoyutNotifier = ValueNotifier<int>(75);
