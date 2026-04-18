@@ -67,7 +67,7 @@ class MusicApiService {
       'appVersion': packageInfo.version,
       'buildNumber': packageInfo.buildNumber,
       'platform': _getDevicePlatform(),
-      'timestamp': DateTime.now().toIso8601String(),
+      'timestamp': DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z",
     };
 
     try {
@@ -273,7 +273,7 @@ class MusicApiService {
       final payload = {
         'musicId': musicId.toString(),
         'listenDuration': listenDuration,
-        'bodyUid': uid,
+        'bodyUid': '${platform}_$uid',
         'platform': platform,
         'device': deviceString,
       };
@@ -335,13 +335,24 @@ class MusicApiService {
   }) async {
     try {
       final headers = await _getOptionalHeaders();
+      final deviceInfo = await _getDeviceInfo(); // Cihaz detaylarını al
+      
+      // Cihaz bilgilerini mesajın sonuna okunaklı bir şekilde ekle
+      String enrichedMessage = "$message\n\n"
+          "--- Teknik Bilgiler ---\n"
+          "Platform: ${deviceInfo['platform']}\n"
+          "Model: ${deviceInfo['model'] ?? deviceInfo['browser'] ?? 'Bilinmiyor'}\n"
+          "OS: ${deviceInfo['osVersion'] ?? 'Bilinmiyor'}\n"
+          "Uygulama Versiyonu: ${deviceInfo['appVersion']} (${deviceInfo['buildNumber']})\n"
+          "Cihaz UID: ${deviceInfo['uid']}";
+
       final response = await http.post(
         Uri.parse('$baseUrl/api/irtibat'),
         headers: headers,
         body: jsonEncode({
           'name': name,
           'email': email,
-          'message': message,
+          'message': enrichedMessage,
           'reason': reason,
         }),
       );

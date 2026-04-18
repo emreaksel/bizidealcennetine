@@ -42,12 +42,20 @@ class _ListeWidgetState extends State<ListeWidget>
 
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (_tabController.index == 1) {
-        _fetchMyLikes();
-      }
-      // Sayfa değiştiğinde aramayı temizleyelim veya yeni sayfada filtrelenmiş gösterelim
+      // Sekme değiştiğinde aramayı temizle
       if (mounted && searchText.isNotEmpty) {
-        _runSearch(searchText);
+        setState(() {
+          _searchController.clear();
+          searchText = "";
+          filteredSongList.clear();
+        });
+      }
+
+      // Sadece senkronize ise VE ikinci tabda boş liste varsa istek atalım
+      if (_tabController.index == 1 && 
+          Degiskenler.isSyncedNotifier.value && 
+          Degiskenler.myLikesNotifier.value.isEmpty) {
+        _fetchMyLikes();
       }
     });
 
@@ -60,6 +68,7 @@ class _ListeWidgetState extends State<ListeWidget>
 
   void _onSyncStatusChanged() {
     if (Degiskenler.isSyncedNotifier.value) {
+      // Senkronize olduğu an listeyi çekelim
       _fetchMyLikes();
     } else {
       Degiskenler.myLikesNotifier.value = [];

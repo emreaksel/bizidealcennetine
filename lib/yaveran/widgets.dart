@@ -482,26 +482,36 @@ class ShareButton extends StatelessWidget {
             ),
           ),
           onPressed: () {
-            if (Degiskenler.hediyeninIndex.toInt() != Degiskenler.parcaIndex) {
-              String shareLink =
-                  'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}';
-              try {
-                for (var item in Degiskenler.songListNotifier.value) {
-                  if (item['sira_no']?.toString() ==
-                      Degiskenler.parcaIndex.toString()) {
-                    if (item['hyperlink'] != null &&
-                        item['hyperlink'].toString().isNotEmpty) {
-                      shareLink = 'https://benolanben.com/${item['hyperlink']}';
-                    }
-                    break;
-                  }
-                }
-              } catch (e) {
-                print("Share error: $e");
-              }
+            if (Degiskenler.parcaIndex == -1) return;
 
-              Share.share(shareLink);
+            String shareLink =
+                'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}';
+            try {
+              for (var item in Degiskenler.songListNotifier.value) {
+                if (item['sira_no']?.toString() ==
+                    Degiskenler.parcaIndex.toString()) {
+                  if (item['hyperlink'] != null &&
+                      item['hyperlink'].toString().isNotEmpty) {
+                    shareLink = 'https://benolanben.com/${item['hyperlink']}';
+                  }
+                  break;
+                }
+              }
+            } catch (e) {
+              print("Share error: $e");
             }
+
+            // iOS/iPad uyumluluğu için butonun konumunu hesaplayalım
+            final box = context.findRenderObject() as RenderBox?;
+            Rect? sharePositionOrigin;
+            if (box != null) {
+              sharePositionOrigin = box.localToGlobal(Offset.zero) & box.size;
+            }
+
+            Share.share(
+              shareLink,
+              sharePositionOrigin: sharePositionOrigin,
+            );
           },
         );
       },
@@ -819,6 +829,8 @@ class _LikeButtonState extends State<LikeButton> {
   }
 
   void _handleLikeToggle() async {
+    if (_isLoading) return;
+
     final token = await _apiService.storage.read(key: 'jwt_token');
     if (token == null) {
       await _showCodeEntryDialog();
@@ -828,21 +840,60 @@ class _LikeButtonState extends State<LikeButton> {
     } else {
       if (Degiskenler.parcaIndex != -1) {
         setState(() {
+          _isLoading = true;
           _isLiked = !_isLiked;
         });
-        final success = await _apiService.toggleLike(Degiskenler.parcaIndex);
-        if (success) {
-          _lastCheckedStatus = _isLiked;
-          // Başarılı olduğunda global dokunanlar listesini de yenileylim
-          final likes = await _apiService.fetchMyLikes(limit: 500);
-          Degiskenler.myLikesNotifier.value = likes;
-        } else {
+
+        try {
+          // Beğenme işlemi yapıldıysa konfeti şovunu başlat
+          if (_isLiked) {
+            final size = MediaQuery.of(context).size;
+            final random = math.Random();
+            final int totalExplosions = 3 + random.nextInt(3);
+
+            void explode({int? count}) {
+              Degiskenler.confettiTriggerNotifier.value = ConfettiTriggerData(
+                Offset(
+                  size.width * (0.1 + random.nextDouble() * 0.8),
+                  size.height * (0.1 + random.nextDouble() * 0.4),
+                ),
+                particleCount: count,
+              );
+            }
+
+            explode();
+
+            for (int i = 1; i < totalExplosions; i++) {
+              bool isLast = (i == totalExplosions - 1);
+              int delayMs = isLast
+                  ? 4000 + random.nextInt(2001)
+                  : 500 + random.nextInt(3001);
+
+              Future.delayed(Duration(milliseconds: delayMs), () {
+                explode(count: isLast ? 66 : null);
+              });
+            }
+          }
+
+          final success = await _apiService.toggleLike(Degiskenler.parcaIndex);
+          if (success) {
+            _lastCheckedStatus = _isLiked;
+            final likes = await _apiService.fetchMyLikes(limit: 500);
+            Degiskenler.myLikesNotifier.value = likes;
+          } else {
+            if (mounted) {
+              setState(() {
+                _isLiked = !_isLiked;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('İşlem başarısız oldu.')));
+            }
+          }
+        } finally {
           if (mounted) {
             setState(() {
-              _isLiked = !_isLiked;
+              _isLoading = false;
             });
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('İşlem başarısız oldu.')));
           }
         }
       }

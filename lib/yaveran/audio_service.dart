@@ -58,7 +58,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       logsToSave.add({
         'musicId': _currentLogTrackId,
         'listenDuration': _accumulatedListenSeconds,
-        'timestamp': _currentLogTimestamp ?? DateTime.now().toIso8601String(),
+        'timestamp': _currentLogTimestamp ?? DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z",
         'status': 'current'
       });
     }
@@ -111,7 +111,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       _pendingLogs.add({
         'musicId': _currentLogTrackId,
         'listenDuration': _accumulatedListenSeconds,
-        'timestamp': _currentLogTimestamp ?? DateTime.now().toIso8601String(),
+        'timestamp': _currentLogTimestamp ?? DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z",
         'status': 'completed',
       });
       _checkAndSendPendingLogs();
@@ -201,7 +201,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         if (newTrackId != _currentLogTrackId) {
           _finalizeLogForCurrentTrack();
           _currentLogTrackId = newTrackId;
-          _currentLogTimestamp = DateTime.now().toIso8601String();
+          _currentLogTimestamp = DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z";
           if (_player!.playing) {
             _lastPlayStartTime = DateTime.now();
           }

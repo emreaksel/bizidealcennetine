@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_theme.dart';
 
+class ConfettiTriggerData {
+  final Offset position;
+  final int? particleCount;
+  ConfettiTriggerData(this.position, {this.particleCount});
+}
+
 class Degiskenler {
   static final Degiskenler _instance = Degiskenler._internal();
   int versionMenba = 0;
@@ -35,6 +41,7 @@ class Degiskenler {
       ValueNotifier<String>('Hoşgeldin Güzeller Güzelim...');
   static var showDialogNotifier = ValueNotifier<bool>(false);
   static var isSyncedNotifier = ValueNotifier<bool>(false);
+  static var confettiTriggerNotifier = ValueNotifier<ConfettiTriggerData?>(null);
 
   static var altEkranBoyutNotifier = ValueNotifier<int>(25);
   static var ustEkranBoyutNotifier = ValueNotifier<int>(75);

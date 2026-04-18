@@ -46,15 +46,26 @@ class _HeartConfettiWidgetState extends State<HeartConfettiWidget>
         }
       }
     });
+
+    Degiskenler.confettiTriggerNotifier.addListener(_onExternalTrigger);
+  }
+
+  void _onExternalTrigger() {
+    final data = Degiskenler.confettiTriggerNotifier.value;
+    if (data != null && mounted) {
+      _startConfetti(data.position, particleCount: data.particleCount);
+      Future.microtask(() => Degiskenler.confettiTriggerNotifier.value = null);
+    }
   }
 
   @override
   void dispose() {
+    Degiskenler.confettiTriggerNotifier.removeListener(_onExternalTrigger);
     _animationController.dispose();
     super.dispose();
   }
 
-  void _startConfetti(Offset position) {
+  void _startConfetti(Offset position, {int? particleCount}) {
     if (_animationController.isAnimating) {
       _animationController.stop();
     }
@@ -65,8 +76,9 @@ class _HeartConfettiWidgetState extends State<HeartConfettiWidget>
         particles.clear();
 
         final random = Random();
+        final count = particleCount ?? widget.particleCount;
 
-        for (int i = 0; i < widget.particleCount; i++) {
+        for (int i = 0; i < count; i++) {
           final angle =
               (math.pi + (math.pi / 3)) + (random.nextDouble() * (math.pi / 3));
           final speed = 200.0 + random.nextDouble() * 300.0;

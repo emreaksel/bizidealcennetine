@@ -158,9 +158,11 @@ class SettingsMenu extends StatelessWidget {
     final List<String> reasons = [
       "Teşekkür",
       "Teknik Sorun",
-      "İçerik Hakkında",
+      "Parça Önerisi",
       "Diğer",
     ];
+
+    bool isSending = false;
 
     showModalBottomSheet(
       context: context,
@@ -273,48 +275,65 @@ class SettingsMenu extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.accentColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.accentColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
-                      ),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          bool success = await _apiService.sendContactMessage(
-                            name: nameController.text,
-                            email: emailController.text,
-                            message: messageController.text,
-                            reason: selectedReason,
-                          );
+                        onPressed: isSending
+                            ? null
+                            : () async {
+                                if (_formKey.currentState!.validate()) {
+                                  setState(() => isSending = true);
 
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(success
-                                    ? 'Mesajınız başarıyla iletildi.'
-                                    : 'Mesaj gönderilirken bir hata oluştu.'),
-                                backgroundColor:
-                                    success ? Colors.green : Colors.redAccent,
+                                  bool success =
+                                      await _apiService.sendContactMessage(
+                                    name: nameController.text,
+                                    email: emailController.text,
+                                    message: messageController.text,
+                                    reason: selectedReason,
+                                  );
+
+                                  if (context.mounted) {
+                                    setState(() => isSending = false);
+                                    if (success) Navigator.pop(context);
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(success
+                                            ? 'Mesajınız başarıyla iletildi.'
+                                            : 'Mesaj gönderilirken bir hata oluştu.'),
+                                        backgroundColor: success
+                                            ? Colors.green
+                                            : Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        child: isSending
+                            ? SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                "Mesajı Gönder",
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
                               ),
-                            );
-                          }
-                        }
-                      },
-                      child: const Text(
-                        "Mesajı Gönder",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -520,13 +539,6 @@ class SettingsMenu extends StatelessWidget {
                   Icons.chat_bubble_outline_rounded,
                   Row(
                     children: [
-                      Text(
-                        "Mesajınızı bize iletin",
-                        style: TextStyle(
-                          color: theme.subTextColor,
-                          fontSize: 14,
-                        ),
-                      ),
                       const Spacer(),
                       Icon(Icons.arrow_forward_ios_rounded,
                           color: theme.accentColor, size: 16),
