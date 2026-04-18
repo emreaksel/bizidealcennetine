@@ -462,21 +462,30 @@ class BackButton extends StatelessWidget {
   }
 }
 
-class ShareButton extends StatelessWidget {
+class ShareButton extends StatefulWidget {
+  @override
+  State<ShareButton> createState() => _ShareButtonState();
+}
+
+class _ShareButtonState extends State<ShareButton> {
+  // GlobalKey ile RenderBox'ı her koşulda doğru alıyoruz (iOS cold start dahil)
+  final GlobalKey _buttonKey = GlobalKey();
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AppTheme>(
       valueListenable: Degiskenler.currentThemeNotifier,
       builder: (context, theme, _) {
         return IconButton(
+          key: _buttonKey,
           icon: Transform.scale(
-            scale: 1.15, // Görsel ağırlığı dengelemek için hafifçe büyüt
+            scale: 1.15,
             child: SvgPicture.asset(
               'assets/icons/bird.svg',
               width: UISize.iconSize(context),
               height: UISize.iconSize(context),
               colorFilter: ColorFilter.mode(
-                theme.textColor.withOpacity(0.7), // Daha belirgin (0.5 -> 0.7)
+                theme.textColor.withOpacity(0.7),
                 BlendMode.srcIn,
               ),
             ),
@@ -501,11 +510,15 @@ class ShareButton extends StatelessWidget {
               print("Share error: $e");
             }
 
-            // iOS/iPad uyumluluğu için butonun konumunu hesaplayalım
-            final box = context.findRenderObject() as RenderBox?;
+            // iOS/iPad: GlobalKey üzerinden RenderBox alıyoruz.
+            // StatelessWidget'ta context.findRenderObject() cold start'ta
+            // yanlış koordinat dönebilir; GlobalKey bunu engeller.
+            final renderBox =
+                _buttonKey.currentContext?.findRenderObject() as RenderBox?;
             Rect? sharePositionOrigin;
-            if (box != null) {
-              sharePositionOrigin = box.localToGlobal(Offset.zero) & box.size;
+            if (renderBox != null && renderBox.hasSize) {
+              sharePositionOrigin =
+                  renderBox.localToGlobal(Offset.zero) & renderBox.size;
             }
 
             Share.share(
