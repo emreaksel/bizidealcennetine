@@ -228,7 +228,10 @@ class _ListeWidgetState extends State<ListeWidget>
                         borderRadius: BorderRadius.circular(16),
                         onTap: () {
                           FocusManager.instance.primaryFocus?.unfocus();
-                          AudioService.playAtId(song['sira_no']);
+                          AudioService.loadQueueAndPlay(
+                            reverse ? songList.reversed.toList() : songList,
+                            song['sira_no']
+                          );
                           UI_support.ekranboyut_ana(0);
                         },
                         child: Padding(

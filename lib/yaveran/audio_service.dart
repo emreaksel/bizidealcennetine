@@ -560,6 +560,41 @@ class AudioService {
     }
   }
 
+  static Future<void> loadQueueAndPlay(List<dynamic> songList, int startId) async {
+    if (_audioHandler == null) return;
+
+    List<AudioSource> sources = [];
+    List<MediaItem> mediaItems = [];
+
+    for (var song in songList) {
+      final mItem = MediaItem(
+        id: song['sira_no'].toString(),
+        title: song['parca_adi'].toString(),
+        artist: song['seslendiren'] ?? '...',
+        artUri: Uri.parse("${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg"),
+      );
+      
+      mediaItems.add(mItem);
+      sources.add(AudioSource.uri(
+        Uri.parse(song['url'] ?? ""),
+        tag: mItem,
+      ));
+    }
+
+    AudioService.parca_listesi = mediaItems;
+    await _audioHandler!.updateQueue(mediaItems);
+
+    int startIndex = songList.indexWhere((s) => s['sira_no'].toString() == startId.toString());
+    if (startIndex == -1) startIndex = 0;
+
+    await _audioHandler!.setAudioSource(
+      ConcatenatingAudioSource(children: sources, useLazyPreparation: true),
+      initialIndex: startIndex,
+    );
+    
+    await _audioHandler!.play();
+  }
+
   static Future<void> addTrackToPlaylist(adi, ses, yol, sira, oynat) async {
     final newTrack = {
       'sira_no': sira,
@@ -610,11 +645,11 @@ class AudioService {
   static setCurrentTrack(index) {
     if (index != null && index < parca_listesi.length) {
       final mediaItem = parca_listesi[index];
+      Degiskenler.parcaIndex = int.tryParse(mediaItem.id) ?? -1;
       parca_adi = mediaItem.title;
       seslendiren = mediaItem.artist ?? "...";
       currentSongTitleNotifier.value = parca_adi;
       currentSongSubTitleNotifier.value = seslendiren;
-      Degiskenler.parcaIndex = int.tryParse(mediaItem.id) ?? -1;
     }
   }
 

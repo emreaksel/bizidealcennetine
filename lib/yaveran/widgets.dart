@@ -561,9 +561,11 @@ class _LikeButtonState extends State<LikeButton> {
   Future<void> _checkLikeStatus() async {
     if (!mounted) return;
 
-    if (Degiskenler.parcaIndex != -1) {
+    final int currentTrackIndex = Degiskenler.parcaIndex;
+
+    if (currentTrackIndex != -1) {
       // Eğer zaten bu şarkıyı kontrol ettiysek tekrar sorma
-      if (_lastCheckedIndex == Degiskenler.parcaIndex) {
+      if (_lastCheckedIndex == currentTrackIndex) {
         if (mounted) setState(() => _isLiked = _lastCheckedStatus);
         return;
       }
@@ -571,7 +573,7 @@ class _LikeButtonState extends State<LikeButton> {
       // ŞARKı DEĞİŞTİ: Yeni şarkı kontrol edilirken butonu hemen sıfırla (Sticky state önleyici)
       if (mounted) {
         setState(() {
-          _isLiked = false; 
+          _isLiked = false;
           _isLoading = true;
         });
       }
@@ -579,12 +581,11 @@ class _LikeButtonState extends State<LikeButton> {
       // 1. Senkronize liste üzerinden hızlı kontrol (İnternet gerekmez)
       if (Degiskenler.isSyncedNotifier.value) {
         bool inLikes = Degiskenler.myLikesNotifier.value.any((liked) =>
-            liked['sira_no'].toString() == Degiskenler.parcaIndex.toString());
-        
-        _lastCheckedIndex = Degiskenler.parcaIndex;
-        _lastCheckedStatus = inLikes;
-        
-        if (mounted) {
+            liked['sira_no'].toString() == currentTrackIndex.toString());
+
+        if (mounted && Degiskenler.parcaIndex == currentTrackIndex) {
+          _lastCheckedIndex = currentTrackIndex;
+          _lastCheckedStatus = inLikes;
           setState(() {
             _isLiked = inLikes;
             _isLoading = false;
@@ -592,14 +593,15 @@ class _LikeButtonState extends State<LikeButton> {
         }
         return;
       }
+
       try {
         final token = await _apiService.storage.read(key: 'jwt_token');
         if (token != null) {
-          bool liked =
-              await _apiService.checkLikeStatus(Degiskenler.parcaIndex);
-          _lastCheckedIndex = Degiskenler.parcaIndex;
-          _lastCheckedStatus = liked;
-          if (mounted) {
+          bool liked = await _apiService.checkLikeStatus(currentTrackIndex);
+
+          if (mounted && Degiskenler.parcaIndex == currentTrackIndex) {
+            _lastCheckedIndex = currentTrackIndex;
+            _lastCheckedStatus = liked;
             setState(() {
               _isLiked = liked;
             });
@@ -608,8 +610,12 @@ class _LikeButtonState extends State<LikeButton> {
       } catch (e) {
         print("Like status check error: $e");
       } finally {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted && Degiskenler.parcaIndex == currentTrackIndex) {
+          setState(() => _isLoading = false);
+        }
       }
+    } else {
+      if (mounted) setState(() => _isLiked = false);
     }
   }
 
@@ -734,7 +740,10 @@ class _LikeButtonState extends State<LikeButton> {
                     const SizedBox(height: 24),
                     TextField(
                       controller: codeController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.text,
+                      textCapitalization: TextCapitalization.characters,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       maxLength: 6,
                       style: TextStyle(
                           color: theme.textColor,
