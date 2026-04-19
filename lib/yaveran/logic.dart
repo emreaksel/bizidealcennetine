@@ -13,6 +13,10 @@ import 'MusicApiService.dart';
 
 final appLinks = AppLinks();
 
+// AppLink çift tetiklenmeyi engellemek için
+String? _lastHandledLink;
+DateTime? _lastHandleTime;
+
 Future<void> arkaplanIslemleri() async {
   Degiskenler.hazirlaniyor = true;
   await Degiskenler.loadTheme();
@@ -140,8 +144,7 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
       Degiskenler.bekleyenHediyeId != null) {
     hediye_irtibat(
         Degiskenler.bekleyenHediyeLink, Degiskenler.bekleyenHediyeId);
-    Degiskenler.bekleyenHediyeLink = null;
-    Degiskenler.bekleyenHediyeId = null;
+    // Not: Temizleme işlemi hediye_irtibat içinde veya sonrasında güvenli yapılmalı
   }
 
   print("Playlist set successfully");
@@ -174,6 +177,17 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
 
 void handleLink(String? link) {
   if (link != null) {
+    // Çift tetiklenme kontrolü (2 saniye içinde aynı link gelirse reddet)
+    final now = DateTime.now();
+    if (_lastHandledLink == link &&
+        _lastHandleTime != null &&
+        now.difference(_lastHandleTime!) < const Duration(seconds: 2)) {
+      print("Duplicate AppLink ignored: $link");
+      return;
+    }
+    _lastHandledLink = link;
+    _lastHandleTime = now;
+
     link =
         link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
     print("replacedLink $link");
@@ -339,7 +353,18 @@ void bildirimKontrol(bildirim) async {
   }
 }
 
-void hediye_irtibat(link, id) {
+void hediye_irtibat(link, id) async {
+  // Eğer zaten bu parça çalıyorsa işlem yapma
+  if (app_audio.AudioService.player?.currentIndex != null) {
+    final currentId = app_audio.AudioService.parca_listesi[app_audio.AudioService.player!.currentIndex!].id;
+    if (currentId == id.toString()) {
+      print("Track $id is already active. Skipping redundant request.");
+      Degiskenler.bekleyenHediyeLink = null;
+      Degiskenler.bekleyenHediyeId = null;
+      return;
+    }
+  }
+
   bool found = false;
   for (var item in Degiskenler().listDinle) {
     if (item['sira_no'].toString() == id.toString()) {
@@ -349,21 +374,53 @@ void hediye_irtibat(link, id) {
   }
 
   if (found) {
+    print("Song found in local list: $id");
     app_audio.AudioService.playAtId(int.parse(id.toString()));
     Degiskenler.hediyeninIndex = int.parse(id.toString());
+    Degiskenler.bekleyenHediyeLink = null;
+    Degiskenler.bekleyenHediyeId = null;
   } else {
-    compute(getirJsonData, "${Degiskenler.kaynakYolu}kaynak/$link.json")
-        .then((data) {
-      List<dynamic> listDinle = data["sesler"];
+    print("Song NOT found in local list ($id), fetching from server...");
+    
+    // Progress göster
+    Degiskenler.hazirlaniyor = true;
+    
+    // Yerel listede yoksa uzak sunucudan iste
+    try {
+      final response = await MusicApiService().fetchAtesiAskLink(link, id);
 
-      for (var item in listDinle) {
-        if (item['sira_no'].toString() == id.toString()) {
-          app_audio.AudioService.playApplinkTrack(item['parca_adi'],
-              item['seslendiren'], item['url'], item['sira_no']);
-          Degiskenler.hediyeninIndex = int.parse(item['sira_no'].toString());
-          break;
-        }
+      if (response != null && response.containsKey("isaretler")) {
+        final item = response["isaretler"];
+        print("Song fetched from server: ${item['parca_adi']}");
+
+        app_audio.AudioService.playApplinkTrack(
+            item['parca_adi'],
+            item['seslendiren'],
+            item['url'],
+            item['sira_no'].toString());
+
+        Degiskenler.hediyeninIndex = int.parse(item['sira_no'].toString());
+      } else {
+        print("Song could not be fetched from server, trying local JSON backup.");
+        compute(getirJsonData, "${Degiskenler.kaynakYolu}kaynak/$link.json")
+            .then((data) {
+          List<dynamic> listDinle = data["sesler"];
+          for (var item in listDinle) {
+            if (item['sira_no'].toString() == id.toString()) {
+              app_audio.AudioService.playApplinkTrack(item['parca_adi'],
+                  item['seslendiren'], item['url'], item['sira_no']);
+              Degiskenler.hediyeninIndex = int.parse(item['sira_no'].toString());
+              break;
+            }
+          }
+        });
       }
-    });
+    } catch (e) {
+      print("Error fetching applink data: $e");
+    } finally {
+      Degiskenler.hazirlaniyor = false;
+      Degiskenler.bekleyenHediyeLink = null;
+      Degiskenler.bekleyenHediyeId = null;
+    }
   }
 }

@@ -473,57 +473,62 @@ class _ShareButtonState extends State<ShareButton> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppTheme>(
-      valueListenable: Degiskenler.currentThemeNotifier,
-      builder: (context, theme, _) {
-        return IconButton(
-          key: _buttonKey,
-          icon: Transform.scale(
-            scale: 1.15,
-            child: SvgPicture.asset(
-              'assets/icons/bird.svg',
-              width: UISize.iconSize(context),
-              height: UISize.iconSize(context),
-              colorFilter: ColorFilter.mode(
-                theme.textColor.withOpacity(0.7),
-                BlendMode.srcIn,
+    return ValueListenableBuilder<bool>(
+      valueListenable: AudioService.isShareableNotifier,
+      builder: (context, isShareable, _) {
+        if (!isShareable) return const SizedBox.shrink();
+        
+        return ValueListenableBuilder<AppTheme>(
+          valueListenable: Degiskenler.currentThemeNotifier,
+          builder: (context, theme, _) {
+            return IconButton(
+              key: _buttonKey,
+              icon: Transform.scale(
+                scale: 1.15,
+                child: SvgPicture.asset(
+                  'assets/icons/bird.svg',
+                  width: UISize.iconSize(context),
+                  height: UISize.iconSize(context),
+                  colorFilter: ColorFilter.mode(
+                    theme.textColor.withOpacity(0.7),
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
-            ),
-          ),
-          onPressed: () {
-            if (Degiskenler.parcaIndex == -1) return;
+              onPressed: () {
+                if (Degiskenler.parcaIndex == -1) return;
 
-            String shareLink =
-                'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}';
-            try {
-              for (var item in Degiskenler.songListNotifier.value) {
-                if (item['sira_no']?.toString() ==
-                    Degiskenler.parcaIndex.toString()) {
-                  if (item['hyperlink'] != null &&
-                      item['hyperlink'].toString().isNotEmpty) {
-                    shareLink = 'https://benolanben.com/${item['hyperlink']}';
+                String shareLink =
+                    'https://benolanben.com/dinle/${Degiskenler.liste_link}&${Degiskenler.parcaIndex}';
+                try {
+                  for (var item in Degiskenler.songListNotifier.value) {
+                    if (item['sira_no']?.toString() ==
+                        Degiskenler.parcaIndex.toString()) {
+                      if (item['hyperlink'] != null &&
+                          item['hyperlink'].toString().isNotEmpty) {
+                        shareLink = 'https://benolanben.com/${item['hyperlink']}';
+                      }
+                      break;
+                    }
                   }
-                  break;
+                } catch (e) {
+                  print("Share error: $e");
                 }
-              }
-            } catch (e) {
-              print("Share error: $e");
-            }
 
-            // iOS/iPad: GlobalKey üzerinden RenderBox alıyoruz.
-            // StatelessWidget'ta context.findRenderObject() cold start'ta
-            // yanlış koordinat dönebilir; GlobalKey bunu engeller.
-            final renderBox =
-                _buttonKey.currentContext?.findRenderObject() as RenderBox?;
-            Rect? sharePositionOrigin;
-            if (renderBox != null && renderBox.hasSize) {
-              sharePositionOrigin =
-                  renderBox.localToGlobal(Offset.zero) & renderBox.size;
-            }
+                // iOS/iPad: GlobalKey üzerinden RenderBox alıyoruz.
+                final renderBox =
+                    _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+                Rect? sharePositionOrigin;
+                if (renderBox != null && renderBox.hasSize) {
+                  sharePositionOrigin =
+                      renderBox.localToGlobal(Offset.zero) & renderBox.size;
+                }
 
-            Share.share(
-              shareLink,
-              sharePositionOrigin: sharePositionOrigin,
+                Share.share(
+                  shareLink,
+                  sharePositionOrigin: sharePositionOrigin,
+                );
+              },
             );
           },
         );

@@ -440,6 +440,7 @@ class AudioService {
       ValueNotifier<ButtonState>(ButtonState.paused);
   static final isLastSongNotifier = ValueNotifier<bool>(true);
   static final isShuffleModeEnabledNotifier = ValueNotifier<bool>(false);
+  static final isShareableNotifier = ValueNotifier<bool>(true);
 
   static Timer? _sleepTimer;
   static Timer? _countdownTimer;
@@ -523,7 +524,16 @@ class AudioService {
 
     int initialIndex = 0;
     if (Degiskenler.bekleyenHediyeId != null) {
-      initialIndex = 0; // Bekleyen hediye varsa rastgele parça başlatma
+      // Bekleyen parça listede var mı diye kontrol et ve o indeksi al
+      initialIndex = playlist.indexWhere((source) {
+        if (source is UriAudioSource) {
+          return (source.tag as MediaItem).id == Degiskenler.bekleyenHediyeId.toString();
+        }
+        return false;
+      });
+      
+      // Eğer listede yoksa (uzak sunucudan istenecekse), 0'dan başlasın (rastgele çalmasın)
+      if (initialIndex == -1) initialIndex = 0; 
     } else {
       final Random random = Random();
       initialIndex = random.nextInt(playlist.length);
@@ -650,6 +660,7 @@ class AudioService {
       seslendiren = mediaItem.artist ?? "...";
       currentSongTitleNotifier.value = parca_adi;
       currentSongSubTitleNotifier.value = seslendiren;
+      isShareableNotifier.value = true;
     }
   }
 
@@ -688,6 +699,7 @@ class AudioService {
         ConcatenatingAudioSource(children: currentSources),
         initialIndex: insertIndex,
       );
+      isShareableNotifier.value = false;
       await play();
     } catch (e) {
       print("Error playing applink track: $e");

@@ -302,7 +302,7 @@ class MusicApiService {
     }
   }
   // ─────────────────────────────────────────────────────────────────────────────
-  // 5. TOPLU VERİ ÇEKME (MENBA, SOZLER, IMAGES)
+  // 5. TOPLU VERI CEKME (MENBA, SOZLER, IMAGES)
   // ─────────────────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> fetchAtesiAskSub() async {
     try {
@@ -322,6 +322,29 @@ class MusicApiService {
     } catch (e) {
       print('Ağ hatası (fetchAtesiAskSub): $e');
       return {};
+    }
+  }
+
+  /// AppLink ile gelen özel içerik sorgusu
+  Future<Map<String, dynamic>?> fetchAtesiAskLink(String link, String id) async {
+    try {
+      final headers = await _getOptionalHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/atesiask'),
+        headers: headers,
+        body: jsonEncode({'link': link, 'id': id}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data;
+      } else {
+        print('fetchAtesiAskLink başarısız: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Ağ hatası (fetchAtesiAskLink): $e');
+      return null;
     }
   }
 
