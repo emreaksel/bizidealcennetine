@@ -6,14 +6,11 @@ import '../yaveran/ui_support.dart';
 import '../yaveran/logic.dart';
 
 class CustomDialog extends StatelessWidget {
-  final String buttonText;
   final String icerik;
 
   CustomDialog({
     required this.icerik,
-  }) : buttonText = icerik.contains('https://benolanben.com/dinle/')
-            ? 'Dinle'
-            : 'Teşekkürler';
+  });
 
   double calculateFontSize(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
@@ -29,26 +26,8 @@ class CustomDialog extends StatelessWidget {
     });
   }
 
-  void hediye() {
-    var hediye = icerik.replaceAll('https://benolanben.com/dinle/', '');
-    var link = hediye.split('&')[0];
-    var id = hediye.split('&')[1];
-    if (link.isNotEmpty && id.isNotEmpty) {
-      print('Link: $link');
-      print('ID: $id');
-      hediye_irtibat(link, id);
-    } else {
-      print('Link or ID is empty.');
-    }
-    closeDialog();
-  }
-
   @override
   Widget build(BuildContext context) {
-    String noticeText = icerik.contains('https://benolanben.com/dinle/')
-        ? 'Dinle!\nHediyeyi Duyacaksın..'
-        : icerik;
-    
     return ValueListenableBuilder<AppTheme>(
       valueListenable: Degiskenler.currentThemeNotifier,
       builder: (context, theme, _) {
@@ -82,7 +61,7 @@ class CustomDialog extends StatelessWidget {
               children: [
                 const SizedBox(height: 8),
                 SelectableText(
-                  noticeText,
+                  icerik,
                   style: TextStyle(
                     color: theme.textColor,
                     fontSize: calculateFontSize(context) * 0.9,
@@ -95,14 +74,10 @@ class CustomDialog extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      if (icerik.contains('https://benolanben.com/dinle/')) {
-                        hediye();
-                      } else {
-                        SharedPreferences prefs =
-                            await SharedPreferences.getInstance();
-                        await prefs.setString('bildirim', icerik);
-                        closeDialog();
-                      }
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      await prefs.setString('bildirim', icerik);
+                      closeDialog();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.accentColor,
@@ -113,9 +88,10 @@ class CustomDialog extends StatelessWidget {
                       ),
                       elevation: 0,
                     ),
-                    child: Text(
-                      buttonText,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    child: const Text(
+                      "Eyvallah",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ),
                 ),

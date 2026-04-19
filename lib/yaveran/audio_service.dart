@@ -58,7 +58,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       logsToSave.add({
         'musicId': _currentLogTrackId,
         'listenDuration': _accumulatedListenSeconds,
-        'timestamp': _currentLogTimestamp ?? DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z",
+        'timestamp': _currentLogTimestamp ??
+            DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z",
         'status': 'current'
       });
     }
@@ -111,7 +112,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       _pendingLogs.add({
         'musicId': _currentLogTrackId,
         'listenDuration': _accumulatedListenSeconds,
-        'timestamp': _currentLogTimestamp ?? DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z",
+        'timestamp': _currentLogTimestamp ??
+            DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z",
         'status': 'completed',
       });
       _checkAndSendPendingLogs();
@@ -201,7 +203,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         if (newTrackId != _currentLogTrackId) {
           _finalizeLogForCurrentTrack();
           _currentLogTrackId = newTrackId;
-          _currentLogTimestamp = DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z";
+          _currentLogTimestamp =
+              DateTime.now().toUtc().toIso8601String().split('.')[0] + "Z";
           if (_player!.playing) {
             _lastPlayStartTime = DateTime.now();
           }
@@ -378,7 +381,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> rewind() async {
     final newPosition = _player!.position - const Duration(seconds: 10);
-    await _player!.seek(newPosition > Duration.zero ? newPosition : Duration.zero);
+    await _player!
+        .seek(newPosition > Duration.zero ? newPosition : Duration.zero);
   }
 
   @override
@@ -490,7 +494,8 @@ class AudioService {
     );
   }
 
-  static Future<void> setPlaylist(List<AudioSource> playlist, {bool playNow = true}) async {
+  static Future<void> setPlaylist(List<AudioSource> playlist,
+      {bool playNow = true}) async {
     if (_audioHandler == null) {
       throw Exception('AudioService başlatılmadı');
     }
@@ -522,30 +527,118 @@ class AudioService {
 
     await _audioHandler!.updateQueue(mediaItems);
 
-    int initialIndex = 0;
-    if (Degiskenler.bekleyenHediyeId != null) {
-      // Bekleyen parça listede var mı diye kontrol et ve o indeksi al
+    bool hediyeVarmi = Degiskenler.bekleyenHediyeId != null;
+
+    // --- HEDİYE PARÇA KONTROL VE BEKLEME MEKANİZMASI ---
+    int initialIndex = -1;
+    if (hediyeVarmi) {
+      // 1. Önce yüklenen listede ara (Eşleştirme)
       initialIndex = playlist.indexWhere((source) {
         if (source is UriAudioSource) {
-          return (source.tag as MediaItem).id == Degiskenler.bekleyenHediyeId.toString();
+          return (source.tag as MediaItem).id ==
+              Degiskenler.bekleyenHediyeId.toString();
         }
         return false;
       });
-      
-      // Eğer listede yoksa (uzak sunucudan istenecekse), 0'dan başlasın (rastgele çalmasın)
-      if (initialIndex == -1) initialIndex = 0; 
-    } else {
+
+      // 2. Listede yoksa sunucudan bekle (Uzak sunucu kontrolü)
+      if (initialIndex == -1 && Degiskenler.bekleyenHediyeLink != null) {
+        print("Hediye listede yok, sunucudan yanıt bekleniyor...");
+        Degiskenler.hazirlaniyor = true;
+        try {
+          final response = await MusicApiService().fetchAtesiAskLink(
+              Degiskenler.bekleyenHediyeLink!, Degiskenler.bekleyenHediyeId!);
+
+          if (response != null && response.containsKey("isaretler")) {
+            final item = response["isaretler"];
+            final mediaItem = MediaItem(
+              id: item['sira_no'].toString(),
+              album: item['parca_adi'],
+              title: item['parca_adi'],
+              artUri:
+                  Uri.parse("${Degiskenler.kaynakYolu}/atesiask/bahar11.jpg"),
+              artist: item['seslendiren'],
+              extras: const {'isApplink': true},
+            );
+
+            // Gelen parçayı listenin en başına koy ki oradan başlasın
+            playlist.insert(
+                0, AudioSource.uri(Uri.parse(item['url']), tag: mediaItem));
+            mediaItems.insert(0, mediaItem);
+            initialIndex = 0;
+            isShareableNotifier.value = false;
+          }
+        } catch (e) {
+          print("Hediye beklenirken hata: $e");
+        } finally {
+          Degiskenler.hazirlaniyor = false;
+        }
+      }
+    }
+
+    // Eğer hediye yoksa veya çekilemediyse rastgele bir parça seç
+    if (initialIndex == -1) {
       final Random random = Random();
       initialIndex = random.nextInt(playlist.length);
     }
+    // --------------------------------------------------
+
+    await _audioHandler!.updateQueue(mediaItems);
 
     await _audioHandler!.setAudioSource(
-      ConcatenatingAudioSource(children: playlist, useLazyPreparation: true),
+      ConcatenatingAudioSource(children: playlist, useLazyPreparation: false),
       initialIndex: initialIndex,
     );
-    if (playNow) await _audioHandler!.play(); // Çalmaya başla
-    
+
+    // Hediye varsa playNow false olsa bile (soğuk açılış) çalmaya başla
+    if (playNow || hediyeVarmi) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      await play();
+    }
+
     Degiskenler.listeYuklendi = true;
+    Degiskenler.bekleyenHediyeId = null;
+    Degiskenler.bekleyenHediyeLink = null;
+  }
+
+  /// Uygulama açıkken gelen linkleri yönetmek için
+  static Future<void> playGiftTrack(String link, String id) async {
+    if (_audioHandler == null) return;
+
+    // 1. Zaten o an çalıyor mu?
+    if (Degiskenler.parcaIndex.toString() == id.toString()) {
+      await play();
+      return;
+    }
+
+    // 2. Mevcut oynatma listesinde (kuyrukta) var mı?
+    int index = _audioHandler!.player!.sequence!.indexWhere((source) {
+      if (source is UriAudioSource) {
+        return (source.tag as MediaItem).id == id.toString();
+      }
+      return false;
+    });
+
+    if (index != -1) {
+      await _audioHandler!.skipToQueueItem(index);
+      await Future.delayed(const Duration(milliseconds: 500));
+      await play();
+    } else {
+      // 3. Kuyrukta yoksa sunucudan iste
+      Degiskenler.hazirlaniyor = true;
+      try {
+        final response = await MusicApiService().fetchAtesiAskLink(link, id);
+        if (response != null && response.containsKey("isaretler")) {
+          final item = response["isaretler"];
+          await playApplinkTrack(
+              item['parca_adi'], item['seslendiren'], item['url'], id);
+        }
+      } catch (e) {
+        print("PlayGiftTrack Error: $e");
+      } finally {
+        Degiskenler.hazirlaniyor = false;
+      }
+    }
   }
 
   static Future<void> playAtId(int id) async {
@@ -570,7 +663,8 @@ class AudioService {
     }
   }
 
-  static Future<void> loadQueueAndPlay(List<dynamic> songList, int startId) async {
+  static Future<void> loadQueueAndPlay(
+      List<dynamic> songList, int startId) async {
     if (_audioHandler == null) return;
 
     List<AudioSource> sources = [];
@@ -581,9 +675,10 @@ class AudioService {
         id: song['sira_no'].toString(),
         title: song['parca_adi'].toString(),
         artist: song['seslendiren'] ?? '...',
-        artUri: Uri.parse("${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg"),
+        artUri:
+            Uri.parse("${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg"),
       );
-      
+
       mediaItems.add(mItem);
       sources.add(AudioSource.uri(
         Uri.parse(song['url'] ?? ""),
@@ -594,14 +689,15 @@ class AudioService {
     AudioService.parca_listesi = mediaItems;
     await _audioHandler!.updateQueue(mediaItems);
 
-    int startIndex = songList.indexWhere((s) => s['sira_no'].toString() == startId.toString());
+    int startIndex = songList
+        .indexWhere((s) => s['sira_no'].toString() == startId.toString());
     if (startIndex == -1) startIndex = 0;
 
     await _audioHandler!.setAudioSource(
       ConcatenatingAudioSource(children: sources, useLazyPreparation: true),
       initialIndex: startIndex,
     );
-    
+
     await _audioHandler!.play();
   }
 
@@ -660,7 +756,7 @@ class AudioService {
       seslendiren = mediaItem.artist ?? "...";
       currentSongTitleNotifier.value = parca_adi;
       currentSongSubTitleNotifier.value = seslendiren;
-      isShareableNotifier.value = true;
+      isShareableNotifier.value = mediaItem.extras?['isApplink'] != true;
     }
   }
 
@@ -671,6 +767,7 @@ class AudioService {
       title: adi,
       artUri: Uri.parse("${Degiskenler.kaynakYolu}/atesiask/bahar11.jpg"),
       artist: ses,
+      extras: const {'isApplink': true},
     );
 
     AudioSource newSource = AudioSource.uri(
@@ -686,8 +783,9 @@ class AudioService {
       int insertIndex = _audioHandler!.player!.currentIndex != null
           ? _audioHandler!.player!.currentIndex! + 1
           : currentSources.length;
-          
-      if (insertIndex > currentSources.length) insertIndex = currentSources.length;
+
+      if (insertIndex > currentSources.length)
+        insertIndex = currentSources.length;
 
       currentSources.insert(insertIndex, newSource);
 
@@ -700,6 +798,7 @@ class AudioService {
         initialIndex: insertIndex,
       );
       isShareableNotifier.value = false;
+      await Future.delayed(const Duration(milliseconds: 500));
       await play();
     } catch (e) {
       print("Error playing applink track: $e");

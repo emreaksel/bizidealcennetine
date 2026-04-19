@@ -140,13 +140,6 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
 
   await app_audio.AudioService.setPlaylist(playlist, playNow: playNow);
 
-  if (Degiskenler.bekleyenHediyeLink != null &&
-      Degiskenler.bekleyenHediyeId != null) {
-    hediye_irtibat(
-        Degiskenler.bekleyenHediyeLink, Degiskenler.bekleyenHediyeId);
-    // Not: Temizleme işlemi hediye_irtibat içinde veya sonrasında güvenli yapılmalı
-  }
-
   print("Playlist set successfully");
 }
 
@@ -200,7 +193,7 @@ void handleLink(String? link) {
         var idPart = parts[1];
         if (linkPart.isNotEmpty && idPart.isNotEmpty) {
           if (Degiskenler.listeYuklendi) {
-            hediye_irtibat(linkPart, idPart);
+            app_audio.AudioService.playGiftTrack(linkPart, idPart);
           } else {
             Degiskenler.bekleyenHediyeLink = linkPart;
             Degiskenler.bekleyenHediyeId = idPart;
@@ -344,83 +337,9 @@ void bildirimKontrol(bildirim) async {
     String? yanit = prefs.getString('bildirim') ?? "bos";
 
     if (yanit != bildirim["metin"]) {
-      if (!Degiskenler.currentNoticeNotifier.value
-          .contains('https://benolanben.com/dinle/')) {
-        Degiskenler.currentNoticeNotifier.value = bildirim["metin"];
-        Degiskenler.showDialogNotifier.value = true;
-      }
+      Degiskenler.currentNoticeNotifier.value = bildirim["metin"];
+      Degiskenler.showDialogNotifier.value = true;
     }
   }
 }
 
-void hediye_irtibat(link, id) async {
-  // Eğer zaten bu parça çalıyorsa işlem yapma
-  if (app_audio.AudioService.player?.currentIndex != null) {
-    final currentId = app_audio.AudioService.parca_listesi[app_audio.AudioService.player!.currentIndex!].id;
-    if (currentId == id.toString()) {
-      print("Track $id is already active. Skipping redundant request.");
-      Degiskenler.bekleyenHediyeLink = null;
-      Degiskenler.bekleyenHediyeId = null;
-      return;
-    }
-  }
-
-  bool found = false;
-  for (var item in Degiskenler().listDinle) {
-    if (item['sira_no'].toString() == id.toString()) {
-      found = true;
-      break;
-    }
-  }
-
-  if (found) {
-    print("Song found in local list: $id");
-    app_audio.AudioService.playAtId(int.parse(id.toString()));
-    Degiskenler.hediyeninIndex = int.parse(id.toString());
-    Degiskenler.bekleyenHediyeLink = null;
-    Degiskenler.bekleyenHediyeId = null;
-  } else {
-    print("Song NOT found in local list ($id), fetching from server...");
-    
-    // Progress göster
-    Degiskenler.hazirlaniyor = true;
-    
-    // Yerel listede yoksa uzak sunucudan iste
-    try {
-      final response = await MusicApiService().fetchAtesiAskLink(link, id);
-
-      if (response != null && response.containsKey("isaretler")) {
-        final item = response["isaretler"];
-        print("Song fetched from server: ${item['parca_adi']}");
-
-        app_audio.AudioService.playApplinkTrack(
-            item['parca_adi'],
-            item['seslendiren'],
-            item['url'],
-            item['sira_no'].toString());
-
-        Degiskenler.hediyeninIndex = int.parse(item['sira_no'].toString());
-      } else {
-        print("Song could not be fetched from server, trying local JSON backup.");
-        compute(getirJsonData, "${Degiskenler.kaynakYolu}kaynak/$link.json")
-            .then((data) {
-          List<dynamic> listDinle = data["sesler"];
-          for (var item in listDinle) {
-            if (item['sira_no'].toString() == id.toString()) {
-              app_audio.AudioService.playApplinkTrack(item['parca_adi'],
-                  item['seslendiren'], item['url'], item['sira_no']);
-              Degiskenler.hediyeninIndex = int.parse(item['sira_no'].toString());
-              break;
-            }
-          }
-        });
-      }
-    } catch (e) {
-      print("Error fetching applink data: $e");
-    } finally {
-      Degiskenler.hazirlaniyor = false;
-      Degiskenler.bekleyenHediyeLink = null;
-      Degiskenler.bekleyenHediyeId = null;
-    }
-  }
-}
