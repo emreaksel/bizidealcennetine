@@ -6,7 +6,7 @@ import 'package:text_scroll/text_scroll.dart';
 import '../yaveran/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
 import '../yaveran/HttpService.dart';
-import 'bird_flight.dart';
+import 'kus_taklaci.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -161,10 +161,8 @@ class _KenBurnsViewWidgetState extends State<KenBurnsViewWidget> {
       child: Stack(
         children: [
           GestureDetector(
-            onTapDown: (details) => _birdKey.currentState?.spawnBirds(
-              count: 6, 
-              position: details.localPosition
-            ),
+            onTapDown: (details) => _birdKey.currentState
+                ?.spawnBirds(count: 6, position: details.localPosition),
             child: KenBurns(
                 minAnimationDuration: const Duration(milliseconds: 10000),
                 maxAnimationDuration: const Duration(milliseconds: 13000),

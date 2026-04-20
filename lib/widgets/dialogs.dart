@@ -78,6 +78,8 @@ class CustomDialog extends StatelessWidget {
                           await SharedPreferences.getInstance();
                       await prefs.setString('bildirim', icerik);
                       closeDialog();
+                      // Bildirim kapatıldığında kuşları tetikle
+                      Degiskenler.birdTriggerNotifier.value = true;
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.accentColor,
@@ -93,13 +95,6 @@ class CustomDialog extends StatelessWidget {
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: closeDialog,
-                  child: Text(
-                    "Kapat",
-                    style: TextStyle(color: theme.textColor.withOpacity(0.5)),
                   ),
                 ),
               ],

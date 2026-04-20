@@ -6,33 +6,77 @@ import '../yaveran/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  KUŞ AYARLARI (BURADAN DEĞİŞTİREBİLİRSİN)
+//  KUŞ AYARLARI
 // ═══════════════════════════════════════════════════════════════════════════
+
+/// Spawn (Doğma) ayarları — kaç kuş çıkacak, ne kadar süre kalacak
+class _SpawnConfig {
+  const _SpawnConfig();
+
+  /// Beğeni yapıldığında ekrana gönderilecek kuş sayısı
+  final int triggerCount = 30;
+
+  /// Ekranda aynı anda bulunabilecek maksimum kuş sayısı
+  final int maxLimit = 80;
+
+  /// Uygulama ilk açıldığında ekranda hazır bulunan kuş sayısı (0 = yok)
+  final int initialCount = 0;
+
+  /// Kuşlar oluştuktan kaç saniye sonra kaybolmaya başlar
+  final int waitSec = 10;
+
+  /// Kaybolma sırasında kaç saniyede bir kuş ekrandan silinir
+  final int removalIntervalSec = 1;
+}
+
+/// Fizik ayarları — hareket, kuvvet, algılama mesafeleri
+class _PhysicsConfig {
+  const _PhysicsConfig();
+
+  /// Kuşların maksimum uçuş hızı (birim/kare) — büyütmek hızlandırır
+  final double maxSpeed = 2.5;
+
+  /// Manevra kabiliyeti: kuşların yön değiştirme kuvvetinin üst sınırı
+  final double maxForce = 0.08;
+
+  /// Bir kuşun komşularını algılayabileceği maksimum mesafe
+  final double neighborDist = 200.0;
+
+  /// Bu mesafenin altına giren kuşlar birbirinden aktif olarak uzaklaşır
+  final double separationDist = 60.0;
+
+  /// Kamera ile sürünün merkezi arasındaki maksimum derinlik (z ekseni)
+  final double areaRadius = 700.0;
+
+  /// Sınıra yaklaşıldığında uygulanan geri itme kuvvetinin çarpanı
+  final double boundaryForce = 5.0;
+
+  /// Ekran dokunuşunun kuşları kaçırmaya başladığı yarıçap (piksel)
+  final double repelRadius = 180.0;
+
+  /// Dokunuş kaçırma kuvvetinin çarpanı — büyütmek daha sert kaçırır
+  final double repelStrength = 2.5;
+
+  /// Perspektif projeksiyonu için odak uzaklığı (focal length)
+  final double focalLength = 1000.0;
+}
+
+/// Görsel ayarlar — kanat animasyonu
+class _VisualConfig {
+  const _VisualConfig();
+
+  /// Her karede faz değerine eklenen miktar — büyütmek kanat çırpmayı hızlandırır
+  final double wingFlapSpeed = 0.2;
+
+  /// Kanat ucunun yukarı/aşağı hareket genliği (piksel cinsinden 3D birim)
+  final double wingFlapAmplitude = 5.0;
+}
+
+/// Ana yapılandırma sınıfı — tüm alt gruplara buradan erişilir
 class BirdConfig {
-  // Adetler
-  static const int triggerBirdCount =
-      30; // Beğeni yapıldığında çıkacak kuş sayısı
-  static const int maxBirdLimit = 80; // Ekrandaki maksimum kuş sınırı
-  static const int initialBirds =
-      0; // Uygulama açılışında olsun mu? (7-8 gibi bir değer verilebilir)
-
-  // Süreler
-  static const int waitDurationSec =
-      10; // Kaç saniye sonra kaybolmaya başlasınlar?
-  static const int removalIntervalSec =
-      1; // Kaç saniyede bir, bir kuş silinsin?
-
-  // Fizik Ayarları
-  static const double maxSpeed =
-      3.5; // Kuşların uçuş hızı (Örn: 2.0 daha yavaş, 5.0 daha hızlı)
-  static const double maxForce = 0.08; // Manevra kabiliyeti (Dönüş yumuşaklığı)
-  static const double neighborDist =
-      200.0; // Kuşların birbirini algılama mesafesi
-  static const double areaRadius =
-      900.0; // Görünürlük derinliği (Perspective depth)
-
-  // Görsel
-  static const double wingsFlapSpeed = 0.2; // Kanat çırpma hızı
+  static const spawn = _SpawnConfig();
+  static const physics = _PhysicsConfig();
+  static const visual = _VisualConfig();
 }
 
 // ── 3D VEKTÖR MATEMATİĞİ ──────────────────────────────────────────────────
@@ -41,6 +85,7 @@ class Vec3 {
   Vec3([this.x = 0, this.y = 0, this.z = 0]);
 
   Vec3 clone() => Vec3(x, y, z);
+
   void set(double x, double y, double z) {
     this.x = x;
     this.y = y;
@@ -108,7 +153,7 @@ void _rotZ(Vec3 p, double a) {
 }
 
 Offset _project(Vec3 p) {
-  const fl = 1000.0;
+  final fl = BirdConfig.physics.focalLength;
   final zsc = fl + p.z;
   if (zsc <= 0) return Offset.zero;
   final scale = fl / zsc;
@@ -139,7 +184,8 @@ class Boid {
   final Vec3 accel = Vec3();
   final _rng = Random();
 
-  double w = 400, h = 400, d = BirdConfig.areaRadius;
+  double w = 400, h = 400;
+  double get d => BirdConfig.physics.areaRadius;
 
   void run(List<Boid> flock, Size screenSize) {
     w = screenSize.width / 2;
@@ -155,10 +201,10 @@ class Boid {
 
   void repelFrom(Vec3 pt) {
     final dist = pos.dst(pt);
-    if (dist < 180) {
+    if (dist < BirdConfig.physics.repelRadius) {
       final dir = pos.clone()
         ..sub(pt)
-        ..scale(2.5 / (dist + 0.01));
+        ..scale(BirdConfig.physics.repelStrength / (dist + 0.01));
       accel.add(dir);
     }
   }
@@ -170,7 +216,7 @@ class Boid {
         final dir = pos.clone()
           ..sub(pt)
           ..divScale(dsq)
-          ..scale(5);
+          ..scale(BirdConfig.physics.boundaryForce);
         accel.add(dir);
       }
     }
@@ -186,7 +232,9 @@ class Boid {
   void _move() {
     vel.add(accel);
     final l = vel.len;
-    if (l > BirdConfig.maxSpeed) vel.divScale(l / BirdConfig.maxSpeed);
+    if (l > BirdConfig.physics.maxSpeed) {
+      vel.divScale(l / BirdConfig.physics.maxSpeed);
+    }
     pos.add(vel);
     accel.set(0, 0, 0);
   }
@@ -195,8 +243,8 @@ class Boid {
     final sum = Vec3();
     int cnt = 0;
     for (final b in flock) {
-      double dist = b.pos.dst(pos);
-      if (dist > 0 && dist <= BirdConfig.neighborDist) {
+      final dist = b.pos.dst(pos);
+      if (dist > 0 && dist <= BirdConfig.physics.neighborDist) {
         sum.add(b.vel);
         cnt++;
       }
@@ -204,7 +252,9 @@ class Boid {
     if (cnt > 0) {
       sum.divScale(cnt.toDouble());
       final v = sum.len;
-      if (v > BirdConfig.maxForce) sum.divScale(v / BirdConfig.maxForce);
+      if (v > BirdConfig.physics.maxForce) {
+        sum.divScale(v / BirdConfig.physics.maxForce);
+      }
     }
     return sum;
   }
@@ -213,8 +263,8 @@ class Boid {
     final center = Vec3();
     int cnt = 0;
     for (final b in flock) {
-      double dist = b.pos.dst(pos);
-      if (dist > 0 && dist <= BirdConfig.neighborDist) {
+      final dist = b.pos.dst(pos);
+      if (dist > 0 && dist <= BirdConfig.physics.neighborDist) {
         center.add(b.pos);
         cnt++;
       }
@@ -223,7 +273,9 @@ class Boid {
       center.divScale(cnt.toDouble());
       final dir = Vec3()..subOf(center, pos);
       final l = dir.len;
-      if (l > BirdConfig.maxForce) dir.divScale(l / BirdConfig.maxForce);
+      if (l > BirdConfig.physics.maxForce) {
+        dir.divScale(l / BirdConfig.physics.maxForce);
+      }
       return dir;
     }
     return Vec3();
@@ -232,8 +284,8 @@ class Boid {
   Vec3 _separate(List<Boid> flock) {
     final sum = Vec3();
     for (final b in flock) {
-      double dist = b.pos.dst(pos);
-      if (dist > 0 && dist <= 60) {
+      final dist = b.pos.dst(pos);
+      if (dist > 0 && dist <= BirdConfig.physics.separationDist) {
         final rep = Vec3()
           ..subOf(pos, b.pos)
           ..normalize()
@@ -245,6 +297,7 @@ class Boid {
   }
 }
 
+// ── GÖRSEL KUŞ ────────────────────────────────────────────────────────────
 class BirdVisual {
   final Vec3 pos;
   final Vec3 rot = Vec3();
@@ -269,7 +322,7 @@ class BirdVisual {
         p.y += pos.y;
         p.z += pos.z;
       }
-      final color = _shade(pts, fi);
+      final color = _shade(pts);
       final p1 = _project(pts[0]);
       final p2 = _project(pts[1]);
       final p3 = _project(pts[2]);
@@ -279,32 +332,39 @@ class BirdVisual {
         ..lineTo(p3.dx, p3.dy)
         ..close();
       canvas.drawPath(
-          path,
-          Paint()
-            ..color = color
-            ..style = PaintingStyle.fill);
+        path,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.fill,
+      );
     }
   }
 
-  Color _shade(List<Vec3> pts, int faceIndex) {
+  Color _shade(List<Vec3> pts) {
     final e1 = pts[1].clone()..sub(pts[0]);
     final e2 = pts[2].clone()..sub(pts[0]);
-    final normal = Vec3(e1.y * e2.z - e1.z * e2.y, e1.z * e2.x - e1.x * e2.z,
-        e1.x * e2.y - e1.y * e2.x);
+    final normal = Vec3(
+      e1.y * e2.z - e1.z * e2.y,
+      e1.z * e2.x - e1.x * e2.z,
+      e1.x * e2.y - e1.y * e2.x,
+    );
     final nLen = normal.len;
     if (nLen > 0) normal.divScale(nLen);
     final light = Vec3(0, 1, 0.8)..normalize();
     final diffuse = normal.dot(light).abs().clamp(0.0, 1.0);
     return Color.fromARGB(
-        255,
-        (baseColor.red * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
-        (baseColor.green * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
-        (baseColor.blue * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255));
+      255,
+      (baseColor.red * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
+      (baseColor.green * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
+      (baseColor.blue * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
+    );
   }
 }
 
+// ── WIDGET ────────────────────────────────────────────────────────────────
 class BirdFlightOverlay extends StatefulWidget {
   const BirdFlightOverlay({Key? key}) : super(key: key);
+
   @override
   BirdFlightOverlayState createState() => BirdFlightOverlayState();
 }
@@ -324,9 +384,10 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
     super.initState();
     _ticker = createTicker(_onTick)..start();
     Degiskenler.birdTriggerNotifier.addListener(_onBirdTrigger);
-    if (BirdConfig.initialBirds > 0) {
+    if (BirdConfig.spawn.initialCount > 0) {
       WidgetsBinding.instance.addPostFrameCallback(
-          (_) => spawnBirds(count: BirdConfig.initialBirds));
+        (_) => spawnBirds(count: BirdConfig.spawn.initialCount),
+      );
     }
   }
 
@@ -338,26 +399,30 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
         _boids.clear();
         _visuals.clear();
       });
-      spawnBirds(count: BirdConfig.triggerBirdCount);
-      _deactiveTimer =
-          Timer(const Duration(seconds: BirdConfig.waitDurationSec), () {
-        if (!mounted) return;
-        _removalTimer = Timer.periodic(
-            const Duration(seconds: BirdConfig.removalIntervalSec), (timer) {
-          if (mounted && _boids.isNotEmpty) {
-            setState(() {
-              _boids.removeAt(0);
-              _visuals.removeAt(0);
-            });
-            if (_boids.isEmpty) {
-              timer.cancel();
-              Degiskenler.birdTriggerNotifier.value = false;
-            }
-          } else {
-            timer.cancel();
-          }
-        });
-      });
+      spawnBirds(count: BirdConfig.spawn.triggerCount);
+      _deactiveTimer = Timer(
+        Duration(seconds: BirdConfig.spawn.waitSec),
+        () {
+          if (!mounted) return;
+          _removalTimer = Timer.periodic(
+            Duration(seconds: BirdConfig.spawn.removalIntervalSec),
+            (timer) {
+              if (mounted && _boids.isNotEmpty) {
+                setState(() {
+                  _boids.removeAt(0);
+                  _visuals.removeAt(0);
+                });
+                if (_boids.isEmpty) {
+                  timer.cancel();
+                  Degiskenler.birdTriggerNotifier.value = false;
+                }
+              } else {
+                timer.cancel();
+              }
+            },
+          );
+        },
+      );
     }
   }
 
@@ -366,20 +431,27 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
     final theme = Degiskenler.currentThemeNotifier.value;
     for (int i = 0; i < count; i++) {
       final boid = Boid();
-      boid.pos.set(_rng.nextDouble() * 200 - 100, _rng.nextDouble() * 200 - 100,
-          _rng.nextDouble() * 400 - 200);
-      boid.vel.set(_rng.nextDouble() * 4 - 2, _rng.nextDouble() * 4 - 2,
-          _rng.nextDouble() * 4 - 2);
+      boid.pos.set(
+        _rng.nextDouble() * 200 - 100,
+        _rng.nextDouble() * 200 - 100,
+        _rng.nextDouble() * 400 - 200,
+      );
+      boid.vel.set(
+        _rng.nextDouble() * 4 - 2,
+        _rng.nextDouble() * 4 - 2,
+        _rng.nextDouble() * 4 - 2,
+      );
       _boids.add(boid);
       _visuals.add(BirdVisual(
-          pos: boid.pos,
-          phase: _rng.nextDouble() * 62.8,
-          baseColor: Color.lerp(
-                  theme.accentColor, theme.textColor, _rng.nextDouble()) ??
-              theme.accentColor));
+        pos: boid.pos,
+        phase: _rng.nextDouble() * 62.8,
+        baseColor:
+            Color.lerp(theme.accentColor, theme.textColor, _rng.nextDouble()) ??
+                theme.accentColor,
+      ));
     }
-    if (_boids.length > BirdConfig.maxBirdLimit) {
-      final range = _boids.length - BirdConfig.maxBirdLimit;
+    if (_boids.length > BirdConfig.spawn.maxLimit) {
+      final range = _boids.length - BirdConfig.spawn.maxLimit;
       _boids.removeRange(0, range);
       _visuals.removeRange(0, range);
     }
@@ -396,8 +468,8 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
       visual.rot.y = atan2(-boid.vel.z, boid.vel.x);
       final vLen = boid.vel.len;
       visual.rot.z = vLen > 0 ? asin((boid.vel.y / vLen).clamp(-1, 1)) : 0;
-      visual.phase = (visual.phase + BirdConfig.wingsFlapSpeed) % 62.8;
-      visual.wingY = sin(visual.phase) * 5;
+      visual.phase = (visual.phase + BirdConfig.visual.wingFlapSpeed) % 62.8;
+      visual.wingY = sin(visual.phase) * BirdConfig.visual.wingFlapAmplitude;
     }
     setState(() {});
   }
@@ -414,13 +486,17 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-        painter: _BirdFlockPainter(_visuals), child: const SizedBox.expand());
+      painter: _BirdFlockPainter(_visuals),
+      child: const SizedBox.expand(),
+    );
   }
 }
 
+// ── PAINTER ───────────────────────────────────────────────────────────────
 class _BirdFlockPainter extends CustomPainter {
   final List<BirdVisual> visuals;
   _BirdFlockPainter(this.visuals);
+
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
