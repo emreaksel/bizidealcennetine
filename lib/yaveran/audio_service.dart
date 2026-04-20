@@ -508,22 +508,6 @@ class AudioService {
       throw Exception('Desteklenmeyen AudioSource tipi');
     }).toList();
 
-    var currentSource = _audioHandler!.player!.audioSource;
-    if (currentSource is ConcatenatingAudioSource &&
-        currentSource.children.isNotEmpty) {
-      int firstNewIndex = currentSource.length;
-      await currentSource.addAll(playlist);
-      final currentQueue = List<MediaItem>.from(parca_listesi);
-      currentQueue.addAll(mediaItems);
-      await _audioHandler!.updateQueue(currentQueue);
-
-      // Yeni eklenen parçalardan rastgele birine git
-      final Random random = Random();
-      int targetIndex = firstNewIndex + random.nextInt(playlist.length);
-      await _audioHandler!.skipToQueueItem(targetIndex);
-      if (playNow) await _audioHandler!.play(); // Çalmaya başla
-      return;
-    }
 
     await _audioHandler!.updateQueue(mediaItems);
 
@@ -583,11 +567,16 @@ class AudioService {
     }
     // --------------------------------------------------
 
+    if (playlist.isEmpty) {
+      print("Error: Playlist is empty");
+      return;
+    }
+
     await _audioHandler!.updateQueue(mediaItems);
 
     await _audioHandler!.setAudioSource(
-      ConcatenatingAudioSource(children: playlist, useLazyPreparation: false),
-      initialIndex: initialIndex,
+      ConcatenatingAudioSource(children: playlist, useLazyPreparation: true),
+      initialIndex: initialIndex >= 0 && initialIndex < playlist.length ? initialIndex : 0,
     );
 
     // Hediye varsa playNow false olsa bile (soğuk açılış) çalmaya başla

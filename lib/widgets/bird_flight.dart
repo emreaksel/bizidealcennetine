@@ -29,7 +29,7 @@ class BirdConfig {
   static const double neighborDist =
       200.0; // Kuşların birbirini algılama mesafesi
   static const double areaRadius =
-      700.0; // Görünürlük derinliği (Perspective depth)
+      900.0; // Görünürlük derinliği (Perspective depth)
 
   // Görsel
   static const double wingsFlapSpeed = 0.2; // Kanat çırpma hızı

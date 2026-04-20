@@ -106,19 +106,7 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
 
   List<dynamic> reversedData = data.reversed.toList();
 
-  final existingList = Degiskenler.songListNotifier.value;
-  for (var existingItem in existingList) {
-    bool found = false;
-    for (var newItem in reversedData) {
-      if (existingItem['sira_no'].toString() == newItem['sira_no'].toString()) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      reversedData.insert(0, existingItem);
-    }
-  }
+
 
   final degiskenler = Degiskenler();
   degiskenler.listDinle = reversedData;
@@ -126,14 +114,17 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
 
   List<AudioSource> playlist = [];
   for (var item in reversedData) {
+    final String? url = item['url'];
+    if (url == null || url.isEmpty) continue;
+
     playlist.add(
       AudioSource.uri(
-        Uri.parse(item['url']),
+        Uri.parse(url),
         tag: MediaItem(
             id: '${item['sira_no']}',
-            album: item['parca_adi'],
-            title: item['parca_adi'],
-            artist: item['seslendiren']),
+            album: item['parca_adi'] ?? '...',
+            title: item['parca_adi'] ?? '...',
+            artist: item['seslendiren'] ?? '...'),
       ),
     );
   }
