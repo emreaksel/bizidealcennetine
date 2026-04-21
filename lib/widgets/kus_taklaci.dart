@@ -76,6 +76,11 @@ class _PhysicsConfig {
 
   /// Sarmalın merkezine doğru çekim kuvveti (kuşların çok fazla dağılmasını önler)
   final double spiralCenterPull = 0.001;
+
+  /// Hız vektöründe Z ekseninin (derinlik) minimum oranı.
+  /// Bu değerin altına düşen kuşlar perspektif kaybı yaşar.
+  /// Önerilen: 0.25 – 0.40
+  final double minDepthFraction = 0.27;
 }
 
 /// Görsel ayarlar — kanat animasyonu
@@ -296,6 +301,23 @@ class Boid {
 
   void _move() {
     vel.add(accel);
+    // ── Çok eksenli hareket garantisi ──────────────────────────────────────
+    // Z (derinlik) bileşeni toplam hızın minDepthFraction oranının altına
+    // düşerse kuş perspektif kaybeder ve tamamen yanal kayar.
+    // Bu blok Z'yi minimum oranda tutarak her zaman 3D hareketi garantiler.
+    final speed = vel.len;
+    if (speed > 0.001) {
+      final zFrac = vel.z.abs() / speed;
+      if (zFrac < BirdConfig.physics.minDepthFraction) {
+        // Mevcut yönü koru; Z ≈ 0 ise rastgele bir derinlik yönü seç
+        final dir = vel.z.abs() < 0.001
+            ? (_rng.nextBool() ? 1.0 : -1.0)
+            : (vel.z > 0 ? 1.0 : -1.0);
+        vel.z = dir * speed * BirdConfig.physics.minDepthFraction;
+      }
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     final l = vel.len;
     if (l > BirdConfig.physics.maxSpeed) {
       vel.divScale(l / BirdConfig.physics.maxSpeed);

@@ -1,0 +1,131 @@
+{
+  "project_info": {
+    "project_number": "747551272671",
+    "firebase_url": "https://atesiask-ea0ba.firebaseio.com",
+    "project_id": "atesiask-ea0ba",
+    "storage_bucket": "atesiask-ea0ba.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:747551272671:android:d1bd90b9544b36d01cc36a",
+        "android_client_info": {
+          "package_name": "com.ea.atesi_ask"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "747551272671-516asa1p9b1hri7e158fqo04cscd0hi7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ea.atesi_ask",
+            "certificate_hash": "c8462bfdd7cad3dabdf4d0bb673136257108dcef"
+          }
+        },
+        {
+          "client_id": "747551272671-61c77vfheg8047l7spkig9jorn8qh5tq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ea.atesi_ask",
+            "certificate_hash": "1abdf73a3707885ef3e77eb7a702f4d115e2fe16"
+          }
+        },
+        {
+          "client_id": "747551272671-6koaf4755b3rpg61hr7o2nuean6e2qpg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ea.atesi_ask",
+            "certificate_hash": "d229ebacbcb559b371d09ea429bb36484f9773a3"
+          }
+        },
+        {
+          "client_id": "747551272671-hgj3f36e9mam91sf5tabmlmpo3tm0ddi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ea.atesi_ask",
+            "certificate_hash": "2e68e7078069e79d22e2aeba9eec643c35c1217d"
+          }
+        },
+        {
+          "client_id": "747551272671-mjl4d8t9iicsmtkhfjokv8qln9jatksa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ea.atesi_ask",
+            "certificate_hash": "6ef8d0b5ec739ac174ac83aea67f162013e2ff8e"
+          }
+        },
+        {
+          "client_id": "747551272671-v4ovkn2v9djlkedda9nph5l99kn5elvk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ea.atesi_ask",
+            "certificate_hash": "982d6f86f3b10c69a644e36ec8d58494c3e7160f"
+          }
+        },
+        {
+          "client_id": "747551272671-jhu84u3nejv562sjq677ksg4e3h9arlg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLz14YRKqdhLSzFKr--TRciwzlfhfBRBk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "747551272671-jhu84u3nejv562sjq677ksg4e3h9arlg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "747551272671-h13c59d9lfrbf3clomv1ltvll6fcq5do.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ea.atesiask"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:747551272671:android:d705482ed7be7dc31cc36a",
+        "android_client_info": {
+          "package_name": "com.ea.bizidealcennetine"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "747551272671-jhu84u3nejv562sjq677ksg4e3h9arlg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLz14YRKqdhLSzFKr--TRciwzlfhfBRBk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "747551272671-jhu84u3nejv562sjq677ksg4e3h9arlg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "747551272671-h13c59d9lfrbf3clomv1ltvll6fcq5do.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ea.atesiask"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
+import 'firebase_options.dart';
 import 'yaveran/Degiskenler.dart';
 import 'yaveran/logic.dart';
 import 'widgets/splash_screen.dart';
@@ -7,6 +11,22 @@ import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase'i başlat
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Crashlytics'i yapılandır
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+  };
+  
+  // Platform tabanlı hataları yakala (Asenkron hatalar vb.)
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   // Bildirim çubuğunu gizle ve tam ekran moduna geç (Odaklanmayı artırmak için)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
