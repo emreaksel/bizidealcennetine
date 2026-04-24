@@ -523,14 +523,14 @@ class BirdVisual {
 }
 
 // ── WIDGET ────────────────────────────────────────────────────────────────
-class BirdFlightOverlay extends StatefulWidget {
-  const BirdFlightOverlay({Key? key}) : super(key: key);
+class FlightOverlay extends StatefulWidget {
+  const FlightOverlay({Key? key}) : super(key: key);
 
   @override
-  BirdFlightOverlayState createState() => BirdFlightOverlayState();
+  FlightOverlayState createState() => FlightOverlayState();
 }
 
-class BirdFlightOverlayState extends State<BirdFlightOverlay>
+class FlightOverlayState extends State<FlightOverlay>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final List<Boid> _boids = [];
@@ -546,7 +546,7 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
     Degiskenler.birdTriggerNotifier.addListener(_onBirdTrigger);
     if (BirdConfig.spawn.initialCount > 0) {
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => spawnBirds(count: BirdConfig.spawn.initialCount),
+        (_) => spawns(count: BirdConfig.spawn.initialCount),
       );
     }
   }
@@ -559,7 +559,7 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
         _boids.clear();
         _visuals.clear();
       });
-      spawnBirds(count: BirdConfig.spawn.triggerCount);
+      spawns(count: BirdConfig.spawn.triggerCount);
       _deactiveTimer = Timer(
         Duration(seconds: BirdConfig.spawn.waitSec),
         () {
@@ -586,7 +586,7 @@ class BirdFlightOverlayState extends State<BirdFlightOverlay>
     }
   }
 
-  void spawnBirds({int count = 12, Offset? position}) {
+  void spawns({int count = 12, Offset? position}) {
     if (!mounted) return;
     final theme = Degiskenler.currentThemeNotifier.value;
 

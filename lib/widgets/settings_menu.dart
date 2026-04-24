@@ -3,6 +3,7 @@ import '../yaveran/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
 import '../yaveran/MusicApiService.dart';
 import '../yaveran/audio_service.dart';
+import 'sync_dialog.dart';
 
 class SettingsMenu extends StatelessWidget {
   final MusicApiService _apiService = MusicApiService();
@@ -502,27 +503,35 @@ class SettingsMenu extends StatelessWidget {
                     isSynced
                         ? Icons.cloud_done_rounded
                         : Icons.cloud_off_rounded,
-                    Row(
-                      children: [
-                        Text(
-                          isSynced ? "Bağlı" : "Bağlı Değil",
-                          style: TextStyle(
-                            color: isSynced
-                                ? Colors.greenAccent
-                                : theme.subTextColor,
-                            fontWeight: FontWeight.w500,
+                    InkWell(
+                      onTap: isSynced ? null : () => SyncDialog.show(context),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        children: [
+                          Text(
+                            isSynced ? "Bağlı" : "Bağlı Değil",
+                            style: TextStyle(
+                              color: isSynced
+                                  ? Colors.greenAccent
+                                  : theme.subTextColor,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        const Spacer(),
-                        if (isSynced)
-                          TextButton.icon(
-                            onPressed: () => _showLogoutDialog(context, theme),
-                            icon: const Icon(Icons.logout_rounded,
-                                color: Colors.redAccent, size: 18),
-                            label: const Text("Bağlantıyı Sırla",
-                                style: TextStyle(color: Colors.redAccent)),
-                          )
-                      ],
+                          const Spacer(),
+                          if (isSynced)
+                            TextButton.icon(
+                              onPressed: () =>
+                                  _showLogoutDialog(context, theme),
+                              icon: const Icon(Icons.logout_rounded,
+                                  color: Colors.redAccent, size: 18),
+                              label: const Text("Bağlantıyı Sırla",
+                                  style: TextStyle(color: Colors.redAccent)),
+                            )
+                          else
+                            Icon(Icons.arrow_forward_ios_rounded,
+                                color: theme.accentColor, size: 16),
+                        ],
+                      ),
                     ),
                   );
                 },

@@ -6,7 +6,7 @@ import 'package:text_scroll/text_scroll.dart';
 import '../yaveran/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
 import '../yaveran/HttpService.dart';
-import 'kus_taklaci.dart';
+import 'kus_kelebek.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -152,7 +152,7 @@ class KenBurnsViewWidget extends StatefulWidget {
 }
 
 class _KenBurnsViewWidgetState extends State<KenBurnsViewWidget> {
-  final GlobalKey<BirdFlightOverlayState> _birdKey = GlobalKey();
+  final GlobalKey<FlightOverlayState> _birdKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -162,14 +162,14 @@ class _KenBurnsViewWidgetState extends State<KenBurnsViewWidget> {
         children: [
           GestureDetector(
             onTapDown: (details) => _birdKey.currentState
-                ?.spawnBirds(count: 6, position: details.localPosition),
+                ?.spawns(count: 6, position: details.localPosition),
             child: KenBurns(
                 minAnimationDuration: const Duration(milliseconds: 10000),
                 maxAnimationDuration: const Duration(milliseconds: 13000),
                 maxScale: 1.3,
                 child: Base64ImageWidget()),
           ),
-          BirdFlightOverlay(key: _birdKey),
+          FlightOverlay(key: _birdKey),
           Positioned(
             bottom: 0,
             left: 0,

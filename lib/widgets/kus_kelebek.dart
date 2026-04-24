@@ -6,74 +6,43 @@ import '../yaveran/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  KUŞ AYARLARI
+//  KELEBEK DURUMLARI
+// ═══════════════════════════════════════════════════════════════════════════
+enum ButterflyState { flying, gliding }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  KELEBEK AYARLARI
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Spawn (Doğma) ayarları — kaç kuş çıkacak, ne kadar süre kalacak
 class _SpawnConfig {
   const _SpawnConfig();
-
-  /// Beğeni yapıldığında ekrana gönderilecek kuş sayısı
-  final int triggerCount = 30;
-
-  /// Ekranda aynı anda bulunabilecek maksimum kuş sayısı
-  final int maxLimit = 80;
-
-  /// Uygulama ilk açıldığında ekranda hazır bulunan kuş sayısı (0 = yok)
+  final int triggerCount = 20;
+  final int maxLimit = 60;
   final int initialCount = 0;
-
-  /// Kuşlar oluştuktan kaç saniye sonra kaybolmaya başlar
   final int waitSec = 10;
-
-  /// Kaybolma sırasında kaç saniyede bir kuş ekrandan silinir
   final int removalIntervalSec = 1;
 }
 
-/// Fizik ayarları — hareket, kuvvet, algılama mesafeleri
 class _PhysicsConfig {
   const _PhysicsConfig();
-
-  /// Kuşların maksimum uçuş hızı (birim/kare) — büyütmek hızlandırır
-  final double maxSpeed = 2.5;
-
-  /// Manevra kabiliyeti: kuşların yön değiştirme kuvvetinin üst sınırı
-  final double maxForce = 0.08;
-
-  /// Bir kuşun komşularını algılayabileceği maksimum mesafe
-  final double neighborDist = 200.0;
-
-  /// Bu mesafenin altına giren kuşlar birbirinden aktif olarak uzaklaşır
-  final double separationDist = 60.0;
-
-  /// Kamera ile sürünün merkezi arasındaki maksimum derinlik (z ekseni)
-  final double areaRadius = 700.0;
-
-  /// Sınıra yaklaşıldığında uygulanan geri itme kuvvetinin çarpanı
-  final double boundaryForce = 5.0;
-
-  /// Ekran dokunuşunun kuşları kaçırmaya başladığı yarıçap (piksel)
-  final double repelRadius = 180.0;
-
-  /// Dokunuş kaçırma kuvvetinin çarpanı — büyütmek daha sert kaçırır
-  final double repelStrength = 2.5;
-
-  /// Perspektif projeksiyonu için odak uzaklığı (focal length)
+  // Daha derin ve geniş kavisler için hız ve manevra artırıldı
+  final double maxSpeed = 3.0;
+  final double maxForce = 0.25;
+  final double separationDist = 120.0;
+  final double areaRadius = 800.0;
+  final double boundaryForce = 4.0;
+  final double repelRadius = 150.0;
+  final double repelStrength = 3.0;
   final double focalLength = 1000.0;
 }
 
-/// Görsel ayarlar — kanat animasyonu
 class _VisualConfig {
   const _VisualConfig();
-
-  /// Her karede faz değerine eklenen miktar — büyütmek kanat çırpmayı hızlandırır
-  final double wingFlapSpeed = 0.2;
-
-  /// Kanat ucunun yukarı/aşağı hareket genliği (piksel cinsinden 3D birim)
-  final double wingFlapAmplitude = 5.0;
+  final double wingFlapSpeed = 0.35;
+  final double wingFlapAmplitude = 8.5;
 }
 
-/// Ana yapılandırma sınıfı — tüm alt gruplara buradan erişilir
-class BirdConfig {
+class ButterflyConfig {
   static const spawn = _SpawnConfig();
   static const physics = _PhysicsConfig();
   static const visual = _VisualConfig();
@@ -136,6 +105,14 @@ class Vec3 {
 }
 
 // ── DÖNÜŞ VE PROJEKSİYON ───────────────────────────────────────────────────
+void _rotX(Vec3 p, double a) {
+  final s = sin(a), c = cos(a);
+  final ny = p.y * c - p.z * s;
+  final nz = p.y * s + p.z * c;
+  p.y = ny;
+  p.z = nz;
+}
+
 void _rotY(Vec3 p, double a) {
   final s = sin(a), c = cos(a);
   final nx = p.x * c - p.z * s;
@@ -153,58 +130,96 @@ void _rotZ(Vec3 p, double a) {
 }
 
 Offset _project(Vec3 p) {
-  final fl = BirdConfig.physics.focalLength;
+  final fl = ButterflyConfig.physics.focalLength;
   final zsc = fl + p.z;
   if (zsc <= 0) return Offset.zero;
   final scale = fl / zsc;
   return Offset(p.x * scale, -p.y * scale);
 }
 
-// ── 3D KUŞ GEOMETRİSİ ──────────────────────────────────────────────────────
+// ── 3D KELEBEK GEOMETRİSİ ──────────────────────────────────────────────────
 const _verts = [
-  [6.0, 0.0, 0.0],
-  [-6.0, -2.0, 1.0],
-  [-6.0, 0.0, 0.0],
-  [-6.0, -2.0, -1.0],
-  [0.0, 2.0, -7.0],
-  [0.0, 2.0, 7.0],
-  [2.0, 0.0, 0.0],
-  [-4.0, 0.0, 0.0],
+  [4.0, 0.0, 0.0], // 0: Gövde Ön (Baş)
+  [-4.0, 0.0, 0.0], // 1: Gövde Arka (Kuyruk)
+  [0.0, 0.0, -8.0], // 2: Sol Kanat Üst Dış
+  [-3.0, 0.0, -5.0], // 3: Sol Kanat Alt Dış
+  [0.0, 0.0, 8.0], // 4: Sağ Kanat Üst Dış
+  [-3.0, 0.0, 5.0], // 5: Sağ Kanat Alt Dış
 ];
 const _faces = [
-  [0, 1, 2],
-  [4, 7, 6],
-  [5, 6, 7]
+  [0, 2, 1],
+  [1, 2, 3],
+  [0, 1, 4],
+  [1, 5, 4]
 ];
 
-// ── 3D BOID ───────────────────────────────────────────────────────────────
-class Boid {
+// ── 3D KELEBEK UÇUŞ FİZİĞİ ──────────────────────────────────────────────
+class ButterflyBoid {
   final Vec3 pos = Vec3();
   final Vec3 vel = Vec3();
   final Vec3 accel = Vec3();
   final _rng = Random();
 
-  double w = 400, h = 400;
-  double get d => BirdConfig.physics.areaRadius;
+  ButterflyState state = ButterflyState.flying;
+  int stateTimer = 0;
 
-  void run(List<Boid> flock, Size screenSize) {
+  double w = 400, h = 400;
+  double get d => ButterflyConfig.physics.areaRadius;
+
+  void run(List<ButterflyBoid> flock, Size screenSize) {
     w = screenSize.width / 2;
     h = screenSize.height / 2;
+
+    _updateState();
     _boundary();
-    if (_rng.nextDouble() > 0.5) {
-      accel.add(_align(flock));
-      accel.add(_cohere(flock));
-      accel.add(_separate(flock));
+
+    if (state == ButterflyState.flying) {
+      if (_rng.nextDouble() > 0.3) {
+        accel.add(_separate(flock));
+      }
+      // DAHA DERİN HAREKET: Y ve Z eksenindeki itiş güçleri ciddi oranda artırıldı
+      accel.add(Vec3(
+        (_rng.nextDouble() - 0.5) * 0.4, // X (Sağ-sol salınım)
+        (_rng.nextDouble() - 0.5) *
+            1.3, // Y (Derin dalışlar ve keskin tırmanışlar)
+        (_rng.nextDouble() - 0.5) *
+            0.8, // Z (Derinlik - kameraya hızlı yaklaşıp uzaklaşma)
+      ));
+      _move();
+    } else if (state == ButterflyState.gliding) {
+      accel.add(Vec3(0, 0.04, 0)); // Süzülürken yerçekimi etkisi
+      _move();
     }
-    _move();
+  }
+
+  void _updateState() {
+    if (stateTimer > 0) {
+      stateTimer--;
+    } else {
+      double rand = _rng.nextDouble();
+
+      if (state == ButterflyState.flying) {
+        // %25 ihtimalle süzülmeye geçer
+        if (rand < 0.25) {
+          state = ButterflyState.gliding;
+          stateTimer = 40 + _rng.nextInt(80);
+        } else {
+          stateTimer = 60; // Uçmaya devam
+        }
+      } else {
+        // Süzülme bittiğinde güçlü bir kanat çırpışıyla (yukarı ivmeyle) uçuşa geçer
+        state = ButterflyState.flying;
+        stateTimer = 80 + _rng.nextInt(120);
+      }
+    }
   }
 
   void repelFrom(Vec3 pt) {
     final dist = pos.dst(pt);
-    if (dist < BirdConfig.physics.repelRadius) {
+    if (dist < ButterflyConfig.physics.repelRadius) {
       final dir = pos.clone()
         ..sub(pt)
-        ..scale(BirdConfig.physics.repelStrength / (dist + 0.01));
+        ..scale(ButterflyConfig.physics.repelStrength / (dist + 0.01));
       accel.add(dir);
     }
   }
@@ -216,7 +231,7 @@ class Boid {
         final dir = pos.clone()
           ..sub(pt)
           ..divScale(dsq)
-          ..scale(BirdConfig.physics.boundaryForce);
+          ..scale(ButterflyConfig.physics.boundaryForce);
         accel.add(dir);
       }
     }
@@ -232,60 +247,18 @@ class Boid {
   void _move() {
     vel.add(accel);
     final l = vel.len;
-    if (l > BirdConfig.physics.maxSpeed) {
-      vel.divScale(l / BirdConfig.physics.maxSpeed);
+    if (l > ButterflyConfig.physics.maxSpeed) {
+      vel.divScale(l / ButterflyConfig.physics.maxSpeed);
     }
     pos.add(vel);
     accel.set(0, 0, 0);
   }
 
-  Vec3 _align(List<Boid> flock) {
-    final sum = Vec3();
-    int cnt = 0;
-    for (final b in flock) {
-      final dist = b.pos.dst(pos);
-      if (dist > 0 && dist <= BirdConfig.physics.neighborDist) {
-        sum.add(b.vel);
-        cnt++;
-      }
-    }
-    if (cnt > 0) {
-      sum.divScale(cnt.toDouble());
-      final v = sum.len;
-      if (v > BirdConfig.physics.maxForce) {
-        sum.divScale(v / BirdConfig.physics.maxForce);
-      }
-    }
-    return sum;
-  }
-
-  Vec3 _cohere(List<Boid> flock) {
-    final center = Vec3();
-    int cnt = 0;
-    for (final b in flock) {
-      final dist = b.pos.dst(pos);
-      if (dist > 0 && dist <= BirdConfig.physics.neighborDist) {
-        center.add(b.pos);
-        cnt++;
-      }
-    }
-    if (cnt > 0) {
-      center.divScale(cnt.toDouble());
-      final dir = Vec3()..subOf(center, pos);
-      final l = dir.len;
-      if (l > BirdConfig.physics.maxForce) {
-        dir.divScale(l / BirdConfig.physics.maxForce);
-      }
-      return dir;
-    }
-    return Vec3();
-  }
-
-  Vec3 _separate(List<Boid> flock) {
+  Vec3 _separate(List<ButterflyBoid> flock) {
     final sum = Vec3();
     for (final b in flock) {
       final dist = b.pos.dst(pos);
-      if (dist > 0 && dist <= BirdConfig.physics.separationDist) {
+      if (dist > 0 && dist <= ButterflyConfig.physics.separationDist) {
         final rep = Vec3()
           ..subOf(pos, b.pos)
           ..normalize()
@@ -297,40 +270,51 @@ class Boid {
   }
 }
 
-// ── GÖRSEL KUŞ ────────────────────────────────────────────────────────────
-class BirdVisual {
+// ── GÖRSEL KELEBEK ─────────────────────────────────────────────────────────
+class ButterflyVisual {
   final Vec3 pos;
   final Vec3 rot = Vec3();
   double phase;
   double wingY = 0;
   Color baseColor;
 
-  BirdVisual({required this.pos, required this.phase, required this.baseColor});
+  ButterflyVisual(
+      {required this.pos, required this.phase, required this.baseColor});
 
   void draw(Canvas canvas) {
     for (int fi = 0; fi < _faces.length; fi++) {
       final face = _faces[fi];
       final pts = face.map((vi) {
         final v = _verts[vi];
-        return Vec3(v[0], v[1], v[2]);
+        final p = Vec3(v[0], v[1], v[2]);
+
+        if (vi >= 2) {
+          p.y += wingY;
+        }
+        return p;
       }).toList();
-      if (fi > 0) pts[0].y = wingY;
+
       for (final p in pts) {
-        _rotY(p, rot.y);
+        _rotX(p, rot.x);
         _rotZ(p, rot.z);
+        _rotY(p, rot.y);
+
         p.x += pos.x;
         p.y += pos.y;
         p.z += pos.z;
       }
+
       final color = _shade(pts);
       final p1 = _project(pts[0]);
       final p2 = _project(pts[1]);
       final p3 = _project(pts[2]);
+
       final path = Path()
         ..moveTo(p1.dx, p1.dy)
         ..lineTo(p2.dx, p2.dy)
         ..lineTo(p3.dx, p3.dy)
         ..close();
+
       canvas.drawPath(
         path,
         Paint()
@@ -350,13 +334,15 @@ class BirdVisual {
     );
     final nLen = normal.len;
     if (nLen > 0) normal.divScale(nLen);
+
     final light = Vec3(0, 1, 0.8)..normalize();
     final diffuse = normal.dot(light).abs().clamp(0.0, 1.0);
+
     return Color.fromARGB(
       255,
-      (baseColor.red * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
-      (baseColor.green * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
-      (baseColor.blue * (0.6 + 0.4 * diffuse)).toInt().clamp(0, 255),
+      (baseColor.red * (0.5 + 0.5 * diffuse)).toInt().clamp(0, 255),
+      (baseColor.green * (0.5 + 0.5 * diffuse)).toInt().clamp(0, 255),
+      (baseColor.blue * (0.5 + 0.5 * diffuse)).toInt().clamp(0, 255),
     );
   }
 }
@@ -372,10 +358,9 @@ class FlightOverlay extends StatefulWidget {
 class FlightOverlayState extends State<FlightOverlay>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
-  final List<Boid> _boids = [];
-  final List<BirdVisual> _visuals = [];
+  final List<ButterflyBoid> _boids = [];
+  final List<ButterflyVisual> _visuals = [];
   final Random _rng = Random();
-  Offset? _predatorPos;
   Timer? _deactiveTimer;
   Timer? _removalTimer;
 
@@ -383,15 +368,15 @@ class FlightOverlayState extends State<FlightOverlay>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
-    Degiskenler.birdTriggerNotifier.addListener(_onBirdTrigger);
-    if (BirdConfig.spawn.initialCount > 0) {
+    Degiskenler.birdTriggerNotifier.addListener(_onTrigger);
+    if (ButterflyConfig.spawn.initialCount > 0) {
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => spawns(count: BirdConfig.spawn.initialCount),
+        (_) => spawns(count: ButterflyConfig.spawn.initialCount),
       );
     }
   }
 
-  void _onBirdTrigger() {
+  void _onTrigger() {
     if (Degiskenler.birdTriggerNotifier.value) {
       _deactiveTimer?.cancel();
       _removalTimer?.cancel();
@@ -399,13 +384,13 @@ class FlightOverlayState extends State<FlightOverlay>
         _boids.clear();
         _visuals.clear();
       });
-      spawns(count: BirdConfig.spawn.triggerCount);
+      spawns(count: ButterflyConfig.spawn.triggerCount);
       _deactiveTimer = Timer(
-        Duration(seconds: BirdConfig.spawn.waitSec),
+        Duration(seconds: ButterflyConfig.spawn.waitSec),
         () {
           if (!mounted) return;
           _removalTimer = Timer.periodic(
-            Duration(seconds: BirdConfig.spawn.removalIntervalSec),
+            Duration(seconds: ButterflyConfig.spawn.removalIntervalSec),
             (timer) {
               if (mounted && _boids.isNotEmpty) {
                 setState(() {
@@ -430,11 +415,12 @@ class FlightOverlayState extends State<FlightOverlay>
     if (!mounted) return;
     final theme = Degiskenler.currentThemeNotifier.value;
     for (int i = 0; i < count; i++) {
-      final boid = Boid();
+      final boid = ButterflyBoid();
       boid.pos.set(
-        _rng.nextDouble() * 200 - 100,
-        _rng.nextDouble() * 200 - 100,
         _rng.nextDouble() * 400 - 200,
+        _rng.nextDouble() * 400 - 200,
+        // Z ekseninde daha geniş bir alanda doğarak derinliği hissettirsinler
+        _rng.nextDouble() * 800 - 400,
       );
       boid.vel.set(
         _rng.nextDouble() * 4 - 2,
@@ -442,16 +428,18 @@ class FlightOverlayState extends State<FlightOverlay>
         _rng.nextDouble() * 4 - 2,
       );
       _boids.add(boid);
-      _visuals.add(BirdVisual(
+
+      _visuals.add(ButterflyVisual(
         pos: boid.pos,
         phase: _rng.nextDouble() * 62.8,
-        baseColor:
-            Color.lerp(theme.accentColor, theme.textColor, _rng.nextDouble()) ??
-                theme.accentColor,
+        baseColor: Color.lerp(theme.accentColor,
+                Colors.primaries[_rng.nextInt(Colors.primaries.length)], 0.4) ??
+            theme.accentColor,
       ));
     }
-    if (_boids.length > BirdConfig.spawn.maxLimit) {
-      final range = _boids.length - BirdConfig.spawn.maxLimit;
+
+    if (_boids.length > ButterflyConfig.spawn.maxLimit) {
+      final range = _boids.length - ButterflyConfig.spawn.maxLimit;
       _boids.removeRange(0, range);
       _visuals.removeRange(0, range);
     }
@@ -461,15 +449,34 @@ class FlightOverlayState extends State<FlightOverlay>
   void _onTick(Duration _) {
     if (!mounted) return;
     final size = MediaQuery.of(context).size;
+
     for (int i = 0; i < _boids.length; i++) {
       final boid = _boids[i];
       boid.run(_boids, size);
       final visual = _visuals[i];
+
+      // Uçuş sırasındaki sabit eğim (Kanatları görebilmek için)
+      visual.rot.x += (0.5 - visual.rot.x) * 0.1;
+
       visual.rot.y = atan2(-boid.vel.z, boid.vel.x);
+
       final vLen = boid.vel.len;
-      visual.rot.z = vLen > 0 ? asin((boid.vel.y / vLen).clamp(-1, 1)) : 0;
-      visual.phase = (visual.phase + BirdConfig.visual.wingFlapSpeed) % 62.8;
-      visual.wingY = sin(visual.phase) * BirdConfig.visual.wingFlapAmplitude;
+      final targetRotZ = vLen > 0 ? asin((boid.vel.y / vLen).clamp(-1, 1)) : 0;
+
+      // DERİN HAREKET: Tırmanış/dalış sırasındaki gövde yatış çarpanı (0.4'ten 0.6'ya) çıkarıldı
+      visual.rot.z += ((targetRotZ * 0.6) - visual.rot.z) * 0.15;
+
+      if (boid.state == ButterflyState.gliding) {
+        // Süzülürken kanatları V şeklinde yukarıda tut
+        final targetWingY = ButterflyConfig.visual.wingFlapAmplitude * 0.8;
+        visual.wingY += (targetWingY - visual.wingY) * 0.15;
+      } else {
+        // Normal Uçuş (Çırpınma)
+        visual.phase =
+            (visual.phase + ButterflyConfig.visual.wingFlapSpeed) % 62.8;
+        visual.wingY =
+            sin(visual.phase) * ButterflyConfig.visual.wingFlapAmplitude;
+      }
     }
     setState(() {});
   }
@@ -479,29 +486,29 @@ class FlightOverlayState extends State<FlightOverlay>
     _ticker.dispose();
     _deactiveTimer?.cancel();
     _removalTimer?.cancel();
-    Degiskenler.birdTriggerNotifier.removeListener(_onBirdTrigger);
+    Degiskenler.birdTriggerNotifier.removeListener(_onTrigger);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _BirdFlockPainter(_visuals),
+      painter: _ButterflyFlockPainter(_visuals),
       child: const SizedBox.expand(),
     );
   }
 }
 
 // ── PAINTER ───────────────────────────────────────────────────────────────
-class _BirdFlockPainter extends CustomPainter {
-  final List<BirdVisual> visuals;
-  _BirdFlockPainter(this.visuals);
+class _ButterflyFlockPainter extends CustomPainter {
+  final List<ButterflyVisual> visuals;
+  _ButterflyFlockPainter(this.visuals);
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.translate(size.width / 2, size.height / 2);
-    final sorted = List<BirdVisual>.from(visuals)
+    final sorted = List<ButterflyVisual>.from(visuals)
       ..sort((a, b) => a.pos.z.compareTo(b.pos.z));
     for (final v in sorted) {
       v.draw(canvas);
