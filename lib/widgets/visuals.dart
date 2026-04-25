@@ -6,10 +6,8 @@ import 'package:text_scroll/text_scroll.dart';
 import '../yaveran/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
 import '../yaveran/HttpService.dart';
-import 'kus_kelebek.dart';
-
 import 'dart:async';
-import 'dart:math' as math;
+import 'kus.dart';
 
 class SpiritualLoader extends StatefulWidget {
   final bool isLoading;

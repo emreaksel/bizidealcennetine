@@ -41,7 +41,8 @@ class Degiskenler {
       ValueNotifier<String>('Hoşgeldin Güzeller Güzelim...');
   static var showDialogNotifier = ValueNotifier<bool>(false);
   static var isSyncedNotifier = ValueNotifier<bool>(false);
-  static var confettiTriggerNotifier = ValueNotifier<ConfettiTriggerData?>(null);
+  static var confettiTriggerNotifier =
+      ValueNotifier<ConfettiTriggerData?>(null);
   static var birdTriggerNotifier = ValueNotifier<bool>(false);
 
   static var altEkranBoyutNotifier = ValueNotifier<int>(25);
@@ -49,7 +50,7 @@ class Degiskenler {
   static var ustEkranIndexNotifier = ValueNotifier<int>(0);
   static var sleepTimerRemainingNotifier = ValueNotifier<int>(0);
   static final ValueNotifier<AppTheme> currentThemeNotifier =
-      ValueNotifier(AppTheme.sukun());
+      ValueNotifier(AppTheme.taze());
 
   static Future<void> saveTheme(AppTheme theme) async {
     final prefs = await SharedPreferences.getInstance();
