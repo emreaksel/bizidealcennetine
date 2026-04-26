@@ -547,7 +547,8 @@ class SettingsMenu extends StatelessWidget {
                               onPressed: () => AudioService.cancelSleepTimer(),
                               icon: const Icon(Icons.cancel_outlined,
                                   color: Colors.redAccent, size: 20),
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                               constraints: const BoxConstraints(),
                             ),
                           ],
@@ -656,7 +657,7 @@ class SettingsMenu extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Dinamik Önizleme Alanı
+                      // Sabit Önizleme Alanı
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeInOut,
@@ -759,10 +760,19 @@ class SettingsMenu extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: AppTheme.themes.map((t) {
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 5,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 1.9,
+                        ),
+                        itemCount: AppTheme.themes.length,
+                        itemBuilder: (context, index) {
+                          final t = AppTheme.themes[index];
                           bool isSelected = theme.name == t.name;
                           return GestureDetector(
                             onTap: () {
@@ -772,11 +782,12 @@ class SettingsMenu extends StatelessWidget {
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 250),
                               curve: Curves.easeOut,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 18, vertical: 12),
+                              alignment: Alignment.center,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
                               decoration: BoxDecoration(
                                 color: t.backgroundColor,
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isSelected
                                       ? t.accentColor
@@ -784,80 +795,41 @@ class SettingsMenu extends StatelessWidget {
                                   width: isSelected ? 2.0 : 1.0,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    t.name,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.w600,
-                                      fontSize: 13,
-                                      letterSpacing: 0.5,
-                                      shadows: [],
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      t.name,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.w600,
+                                        fontSize: 11,
+                                        letterSpacing: 0.2,
+                                      ),
                                     ),
-                                  ),
-                                  if (isSelected) ...[
-                                    const SizedBox(width: 8),
-                                    const Icon(
-                                      Icons.check_circle_rounded,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ]
-                                ],
+                                    if (isSelected) ...[
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: Colors.white,
+                                        size: 13,
+                                      ),
+                                    ]
+                                  ],
+                                ),
                               ),
                             ),
                           );
-                        }).toList(),
+                        },
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 24),
-                // Time Display Section
-                ValueListenableBuilder<bool>(
-                  valueListenable: Degiskenler.onlySecondsNotifier,
-                  builder: (context, onlySeconds, child) {
-                    return _buildSettingSection(
-                      theme,
-                      "Zaman Gösterimi",
-                      Icons.timer_outlined,
-                      null,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            onlySeconds ? "Saniye" : "Dakika:Saniye",
-                            style: TextStyle(
-                              color: theme.textColor.withOpacity(0.5),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Switch(
-                            value: onlySeconds,
-                            activeColor: theme.accentColor,
-                            activeTrackColor:
-                                theme.accentColor.withOpacity(0.3),
-                            inactiveThumbColor:
-                                theme.textColor.withOpacity(0.3),
-                            inactiveTrackColor:
-                                theme.textColor.withOpacity(0.1),
-                            onChanged: (value) {
-                              Degiskenler.onlySecondsNotifier.value = value;
-                              Degiskenler.saveOnlySeconds(value);
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                // Contact Section
                 const SizedBox(height: 48),
                 Text(
                   "Âteş-i Aşk",

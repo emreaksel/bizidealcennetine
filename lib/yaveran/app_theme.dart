@@ -35,7 +35,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.sukut() => AppTheme(
+  factory AppTheme.suveyda() => AppTheme(
         name: "Süveyda",
         backgroundColor: const Color(0xFF000000),
         cardColor: const Color(0xFF111111),
@@ -44,7 +44,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.sumbul() => AppTheme(
+  factory AppTheme.mest() => AppTheme(
         name: "Mest",
         backgroundColor: const Color(0xFF130E24),
         cardColor: const Color(0xFF21183D),
@@ -53,7 +53,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.sems() => AppTheme(
+  factory AppTheme.isk() => AppTheme(
         name: "Işk",
         backgroundColor: const Color(0xFF222414),
         cardColor: const Color(0xFF373A22),
@@ -75,7 +75,7 @@ class AppTheme {
   //  DİĞER TEMALAR (ALFABETİK SIRALI)
   // ═══════════════════════════════════════
 
-  factory AppTheme.ahter() => AppTheme(
+  factory AppTheme.dilruba() => AppTheme(
         name: "Dilruba",
         backgroundColor: const Color(0xFF2E0F1C),
         cardColor: const Color(0xFF4A1A2D),
@@ -84,7 +84,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.cinar() => AppTheme(
+  factory AppTheme.sifa() => AppTheme(
         name: "Şifa",
         backgroundColor: const Color(0xFF162118),
         cardColor: const Color(0xFF253828),
@@ -102,7 +102,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.efsun() => AppTheme(
+  factory AppTheme.sevda() => AppTheme(
         name: "Sevda",
         backgroundColor: const Color(0xFF1F0D23),
         cardColor: const Color(0xFF36183D),
@@ -111,20 +111,11 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.erguvan() => AppTheme(
+  factory AppTheme.sir() => AppTheme(
         name: "Sır",
         backgroundColor: const Color(0xFF200B26),
         cardColor: const Color(0xFF33123D),
         accentColor: const Color(0xFFD13693),
-        textColor: _mainText,
-        subTextColor: _subText,
-      );
-
-  factory AppTheme.fecir() => AppTheme(
-        name: "Fecir",
-        backgroundColor: const Color(0xFF1B1423),
-        cardColor: const Color(0xFF2D2338),
-        accentColor: const Color(0xFFFF8C00),
         textColor: _mainText,
         subTextColor: _subText,
       );
@@ -138,7 +129,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.firuze() => AppTheme(
+  factory AppTheme.ahenk() => AppTheme(
         name: "Ahenk",
         backgroundColor: const Color(0xFF052426),
         cardColor: const Color(0xFF0A3B3E),
@@ -152,15 +143,6 @@ class AppTheme {
         backgroundColor: const Color(0xFF2D1B22),
         cardColor: const Color(0xFF432933),
         accentColor: const Color(0xFFFEA3AA),
-        textColor: _mainText,
-        subTextColor: _subText,
-      );
-
-  factory AppTheme.dus() => AppTheme(
-        name: "Düş",
-        backgroundColor: const Color(0xFF250A1A),
-        cardColor: const Color(0xFF3D112B),
-        accentColor: const Color(0xFFFF1493),
         textColor: _mainText,
         subTextColor: _subText,
       );
@@ -192,8 +174,8 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.hicran() => AppTheme(
-        name: "Yangın",
+  factory AppTheme.bade() => AppTheme(
+        name: "Bade",
         backgroundColor: const Color(0xFF1A1515),
         cardColor: const Color(0xFF2E2626),
         accentColor: const Color(0xFFE63946),
@@ -201,27 +183,9 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  // Eski adıyla Nur
-  factory AppTheme.katre() => AppTheme(
-        name: "Katre",
-        backgroundColor: const Color(0xFF0E1A24),
-        cardColor: const Color(0xFF1A2E40),
-        accentColor: const Color(0xFF62B8F6),
-        textColor: _mainText,
-        subTextColor: _subText,
-      );
-
-  factory AppTheme.kehribar() => AppTheme(
-        name: "Şule",
-        backgroundColor: const Color(0xFF2E1C04),
-        cardColor: const Color(0xFF452A06),
-        accentColor: const Color(0xFFFFBF00),
-        textColor: _mainText,
-        subTextColor: _subText,
-      );
 
   // Eski adıyla Ateş
-  factory AppTheme.koz() => AppTheme(
+  factory AppTheme.tendecan() => AppTheme(
         name: "Tendecan",
         backgroundColor: const Color(0xFF331400),
         cardColor: const Color(0xFF4D2200),
@@ -230,16 +194,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.kul() => AppTheme(
-        name: "Hüzzam",
-        backgroundColor: const Color(0xFF2C2C2C),
-        cardColor: const Color(0xFF3D3D3D),
-        accentColor: const Color(0xFFB2BEB5),
-        textColor: _mainText,
-        subTextColor: _subText,
-      );
-
-  factory AppTheme.lal() => AppTheme(
+  factory AppTheme.atespare() => AppTheme(
         name: "Ateşpâre",
         backgroundColor: const Color(0xFF1A0206),
         cardColor: const Color(0xFF2B040B),
@@ -266,8 +221,8 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.nar() => AppTheme(
-        name: "Nar",
+  factory AppTheme.mey() => AppTheme(
+        name: "Mey",
         backgroundColor: const Color(0xFF24060A),
         cardColor: const Color(0xFF3D0C14),
         accentColor: const Color(0xFFE3242B),
@@ -275,8 +230,8 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.ufuk() => AppTheme(
-        name: "Mehtap",
+  factory AppTheme.duru() => AppTheme(
+        name: "Duru",
         backgroundColor: const Color(0xFF1A1A2E),
         cardColor: const Color(0xFF282846),
         accentColor: const Color(0xFFFF7E67),
@@ -284,26 +239,10 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.umman() => AppTheme(
-        name: "Nefes",
-        backgroundColor: const Color(0xFF001A33),
-        cardColor: const Color(0xFF002F5C),
-        accentColor: const Color(0xFF00BFFF),
-        textColor: _mainText,
-        subTextColor: _subText,
-      );
 
-  factory AppTheme.vuslat() => AppTheme(
-        name: "Rüya",
-        backgroundColor: const Color(0xFF2E1528),
-        cardColor: const Color(0xFF47213E),
-        accentColor: const Color(0xFFFFB6C1),
-        textColor: _mainText,
-        subTextColor: _subText,
-      );
 
-  factory AppTheme.zemheri() => AppTheme(
-        name: "Zemheri",
+  factory AppTheme.ferah() => AppTheme(
+        name: "Ferah",
         backgroundColor: const Color(0xFF001F24),
         cardColor: const Color(0xFF003840),
         accentColor: const Color(0xFFB0E0E6),
@@ -311,7 +250,7 @@ class AppTheme {
         subTextColor: _subText,
       );
 
-  factory AppTheme.zumrut() => AppTheme(
+  factory AppTheme.anka() => AppTheme(
         name: "Anka",
         backgroundColor: const Color(0xFF022115),
         cardColor: const Color(0xFF043824),
@@ -324,40 +263,30 @@ class AppTheme {
   //  TÜM TEMALAR LİSTESİ (Sıralı)
   // ═══════════════════════════════════════
   static List<AppTheme> themes = [
-    // S ve Ş
-    AppTheme.sukun(),
-    AppTheme.sukut(),
-    AppTheme.sumbul(),
-    AppTheme.sems(),
-    AppTheme.senlik(),
-
-    // Alfabetik devamı
-    AppTheme.ahter(),
-    AppTheme.cinar(),
-    AppTheme.taze(),
-    AppTheme.efsun(),
-    AppTheme.erguvan(),
-    AppTheme.fecir(),
-    AppTheme.feza(),
-    AppTheme.firuze(),
-    AppTheme.hicran(),
-    AppTheme.kabul(),
-    AppTheme.katre(),
-    AppTheme.kehribar(),
-    AppTheme.koz(),
-    AppTheme.kul(),
-    AppTheme.lal(),
-    AppTheme.leyl(),
-    AppTheme.hayal(),
-    AppTheme.dus(),
-    AppTheme.saril(),
-    AppTheme.soz(),
-    AppTheme.mehtap(),
-    AppTheme.nar(),
-    AppTheme.ufuk(),
-    AppTheme.umman(),
-    AppTheme.vuslat(),
-    AppTheme.zemheri(),
-    AppTheme.zumrut(),
+    AppTheme.ahenk(), // Ahenk
+    AppTheme.anka(), // Anka
+    AppTheme.atespare(), // Ateşpâre
+    AppTheme.bade(), // Bade
+    AppTheme.dilruba(), // Dilruba
+    AppTheme.duru(), // Duru
+    AppTheme.ferah(), // Ferah
+    AppTheme.feza(), // Feza
+    AppTheme.hayal(), // Hayal
+    AppTheme.isk(), // Işk
+    AppTheme.kabul(), // Kabul
+    AppTheme.leyl(), // Leyl
+    AppTheme.mehtap(), // Mehtap
+    AppTheme.mest(), // Mest
+    AppTheme.mey(), // Mey
+    AppTheme.saril(), // Sarıl
+    AppTheme.sevda(), // Sevda
+    AppTheme.sir(), // Sır
+    AppTheme.soz(), // Söz
+    AppTheme.sukun(), // Sükun
+    AppTheme.suveyda(), // Süveyda
+    AppTheme.senlik(), // Şenlik
+    AppTheme.sifa(), // Şifa
+    AppTheme.taze(), // Taze
+    AppTheme.tendecan(), // Tendecan
   ];
 }

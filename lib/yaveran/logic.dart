@@ -20,7 +20,6 @@ DateTime? _lastHandleTime;
 Future<void> arkaplanIslemleri() async {
   Degiskenler.hazirlaniyor = true;
   await Degiskenler.loadTheme();
-  await Degiskenler.loadOnlySeconds();
 
   try {
     print("Initializing AudioService...");

@@ -138,11 +138,10 @@ class SeekBar extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 19.0),
       // Kenarlara 16 piksellik padding ekleyin
-      child: ValueListenableBuilder3<ProgressBarState, AppTheme, bool>(
+      child: ValueListenableBuilder2<ProgressBarState, AppTheme>(
         first: AudioService.progressNotifier,
         second: Degiskenler.currentThemeNotifier,
-        third: Degiskenler.onlySecondsNotifier,
-        builder: (context, value, theme, onlySeconds, _) {
+        builder: (context, value, theme, _) {
           return ProgressBar(
             progress: value.current,
             buffered: value.buffered,
@@ -165,7 +164,6 @@ class SeekBar extends StatelessWidget {
             thumbRadius: 11.0,
             thumbBorderThickness: 0,
             thumbGlowRadius: 24,
-            onlySeconds: onlySeconds,
           );
         },
       ),
