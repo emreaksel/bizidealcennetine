@@ -138,10 +138,11 @@ class SeekBar extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 19.0),
       // Kenarlara 16 piksellik padding ekleyin
-      child: ValueListenableBuilder2<ProgressBarState, AppTheme>(
+      child: ValueListenableBuilder3<ProgressBarState, AppTheme, bool>(
         first: AudioService.progressNotifier,
         second: Degiskenler.currentThemeNotifier,
-        builder: (context, value, theme, _) {
+        third: Degiskenler.onlySecondsNotifier,
+        builder: (context, value, theme, onlySeconds, _) {
           return ProgressBar(
             progress: value.current,
             buffered: value.buffered,
@@ -164,6 +165,7 @@ class SeekBar extends StatelessWidget {
             thumbRadius: 11.0,
             thumbBorderThickness: 0,
             thumbGlowRadius: 24,
+            onlySeconds: onlySeconds,
           );
         },
       ),
@@ -926,6 +928,36 @@ class ValueListenableBuilder2<A, B> extends StatelessWidget {
         builder: (context, a, _) => ValueListenableBuilder<B>(
           valueListenable: second,
           builder: (context, b, _) => builder(context, a, b, child),
+        ),
+      );
+}
+
+class ValueListenableBuilder3<A, B, C> extends StatelessWidget {
+  const ValueListenableBuilder3({
+    Key? key,
+    required this.first,
+    required this.second,
+    required this.third,
+    required this.builder,
+    this.child,
+  }) : super(key: key);
+
+  final ValueListenable<A> first;
+  final ValueListenable<B> second;
+  final ValueListenable<C> third;
+  final Widget? child;
+  final Widget Function(BuildContext context, A a, B b, C c, Widget? child)
+      builder;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<A>(
+        valueListenable: first,
+        builder: (context, a, _) => ValueListenableBuilder<B>(
+          valueListenable: second,
+          builder: (context, b, _) => ValueListenableBuilder<C>(
+            valueListenable: third,
+            builder: (context, c, _) => builder(context, a, b, c, child),
+          ),
         ),
       );
 }

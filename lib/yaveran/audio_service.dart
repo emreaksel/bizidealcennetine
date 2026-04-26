@@ -231,6 +231,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
     });
 
+    _player!.volumeStream.listen((volume) {
+      AudioService.volumeNotifier.value = volume;
+    });
+
     _player!.loopModeStream.listen((loopMode) {
       playbackState.add(playbackState.value.copyWith(
         repeatMode: _convertLoopMode(loopMode),
@@ -423,6 +427,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     await _player!.setAudioSource(source, initialIndex: initialIndex);
   }
 
+  Future<void> setVolume(double volume) async {
+    await _player?.setVolume(volume);
+  }
+
   AudioPlayer? get player => _player;
 }
 
@@ -445,6 +453,19 @@ class AudioService {
   static final isLastSongNotifier = ValueNotifier<bool>(true);
   static final isShuffleModeEnabledNotifier = ValueNotifier<bool>(false);
   static final isShareableNotifier = ValueNotifier<bool>(true);
+  static final volumeNotifier = ValueNotifier<double>(1.0);
+
+  static Future<void> saveVolume(double volume) async {
+    if (volume <= 0) return; // Sessiz konumu başlangıç ayarı olarak kaydetme
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('app_volume', volume);
+  }
+
+  static Future<void> loadVolume() async {
+    final prefs = await SharedPreferences.getInstance();
+    double vol = prefs.getDouble('app_volume') ?? 1.0;
+    await setVolume(vol);
+  }
 
   static Timer? _sleepTimer;
   static Timer? _countdownTimer;
@@ -796,6 +817,21 @@ class AudioService {
 
   static Future<void> play() async {
     await _audioHandler!.play();
+  }
+
+  static Future<void> setVolume(double volume) async {
+    await _audioHandler?.setVolume(volume);
+    saveVolume(volume);
+  }
+
+  static double _lastVolume = 1.0;
+  static Future<void> toggleMute() async {
+    if (volumeNotifier.value > 0) {
+      _lastVolume = volumeNotifier.value;
+      await setVolume(0);
+    } else {
+      await setVolume(_lastVolume > 0 ? _lastVolume : 1.0);
+    }
   }
 
   static Future<void> pause() async {

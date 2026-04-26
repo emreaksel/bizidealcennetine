@@ -99,7 +99,10 @@ class ProgressBar extends LeafRenderObjectWidget {
     this.timeLabelType,
     this.timeLabelTextStyle,
     this.timeLabelPadding = 0.0,
+    this.onlySeconds = false,
   }) : super(key: key);
+
+  final bool onlySeconds;
 
   final double thumbBorderThickness;
 
@@ -288,6 +291,7 @@ class ProgressBar extends LeafRenderObjectWidget {
       timeLabelType: timeLabelType ?? TimeLabelType.totalTime,
       timeLabelTextStyle: textStyle,
       timeLabelPadding: timeLabelPadding,
+      onlySeconds: onlySeconds,
     );
   }
 
@@ -320,7 +324,8 @@ class ProgressBar extends LeafRenderObjectWidget {
       ..timeLabelLocation = timeLabelLocation ?? TimeLabelLocation.below
       ..timeLabelType = timeLabelType ?? TimeLabelType.totalTime
       ..timeLabelTextStyle = textStyle
-      ..timeLabelPadding = timeLabelPadding;
+      ..timeLabelPadding = timeLabelPadding
+      ..onlySeconds = onlySeconds;
   }
 
   @override
@@ -437,6 +442,7 @@ class _RenderProgressBar extends RenderBox {
     required TimeLabelType timeLabelType,
     TextStyle? timeLabelTextStyle,
     double timeLabelPadding = 0.0,
+    bool onlySeconds = false,
   })  : _total = total,
         _buffered = buffered,
         _onSeek = onSeek,
@@ -458,7 +464,8 @@ class _RenderProgressBar extends RenderBox {
         _timeLabelLocation = timeLabelLocation,
         _timeLabelType = timeLabelType,
         _timeLabelTextStyle = timeLabelTextStyle,
-        _timeLabelPadding = timeLabelPadding {
+        _timeLabelPadding = timeLabelPadding,
+        _onlySeconds = onlySeconds {
     _drag = _EagerHorizontalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
@@ -798,6 +805,15 @@ class _RenderProgressBar extends RenderBox {
   /// Whether the thumb will paint before the start or after the end of the bar.
   bool get thumbCanPaintOutsideBar => _thumbCanPaintOutsideBar;
   bool _thumbCanPaintOutsideBar;
+
+  bool get onlySeconds => _onlySeconds;
+  bool _onlySeconds;
+  set onlySeconds(bool value) {
+    if (_onlySeconds == value) return;
+    _onlySeconds = value;
+    _clearLabelCache();
+    markNeedsLayout();
+  }
   set thumbCanPaintOutsideBar(bool value) {
     if (_thumbCanPaintOutsideBar == value) return;
     _thumbCanPaintOutsideBar = value;
@@ -1119,8 +1135,11 @@ class _RenderProgressBar extends RenderBox {
   }
 
   String _getTimeString(Duration time) {
+    if (onlySeconds) {
+      return time.inSeconds.toString();
+    }
     final minutes =
-    time.inMinutes.remainder(Duration.minutesPerHour).toString();
+        time.inMinutes.remainder(Duration.minutesPerHour).toString();
     final seconds = time.inSeconds
         .remainder(Duration.secondsPerMinute)
         .toString()

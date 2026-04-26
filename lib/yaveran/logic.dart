@@ -20,10 +20,12 @@ DateTime? _lastHandleTime;
 Future<void> arkaplanIslemleri() async {
   Degiskenler.hazirlaniyor = true;
   await Degiskenler.loadTheme();
+  await Degiskenler.loadOnlySeconds();
 
   try {
     print("Initializing AudioService...");
     await app_audio.AudioService.init();
+    await app_audio.AudioService.loadVolume();
   } catch (e) {
     print("Error initializing AudioService: $e");
   }

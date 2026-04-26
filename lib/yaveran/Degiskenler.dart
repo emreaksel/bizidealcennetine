@@ -49,6 +49,7 @@ class Degiskenler {
   static var ustEkranBoyutNotifier = ValueNotifier<int>(75);
   static var ustEkranIndexNotifier = ValueNotifier<int>(0);
   static var sleepTimerRemainingNotifier = ValueNotifier<int>(0);
+  static var onlySecondsNotifier = ValueNotifier<bool>(false);
   static final ValueNotifier<AppTheme> currentThemeNotifier =
       ValueNotifier(AppTheme.taze());
 
@@ -68,6 +69,16 @@ class Degiskenler {
         // Tema bulunamazsa varsayılan kalır
       }
     }
+  }
+
+  static Future<void> saveOnlySeconds(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('only_seconds', value);
+  }
+
+  static Future<void> loadOnlySeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    onlySecondsNotifier.value = prefs.getBool('only_seconds') ?? false;
   }
 
   List<dynamic> listSozler = [];

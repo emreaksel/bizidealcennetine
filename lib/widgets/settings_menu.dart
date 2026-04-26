@@ -442,6 +442,82 @@ class SettingsMenu extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
+                // Volume Section
+                ValueListenableBuilder<double>(
+                  valueListenable: AudioService.volumeNotifier,
+                  builder: (context, volume, _) {
+                    return _buildSettingSection(
+                      theme,
+                      "Ses Ayarları",
+                      Icons.volume_up_outlined,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  volume == 0
+                                      ? Icons.volume_off_rounded
+                                      : volume < 0.5
+                                          ? Icons.volume_down_rounded
+                                          : Icons.volume_up_rounded,
+                                  color: theme.accentColor,
+                                ),
+                                onPressed: () => AudioService.toggleMute(),
+                              ),
+                              Expanded(
+                                child: SliderTheme(
+                                  data: SliderThemeData(
+                                    trackHeight: 4,
+                                    thumbShape: const RoundSliderThumbShape(
+                                        enabledThumbRadius: 8),
+                                    overlayShape: const RoundSliderOverlayShape(
+                                        overlayRadius: 16),
+                                    activeTrackColor: theme.accentColor,
+                                    inactiveTrackColor:
+                                        theme.accentColor.withOpacity(0.1),
+                                    thumbColor: theme.accentColor,
+                                    overlayColor:
+                                        theme.accentColor.withOpacity(0.2),
+                                  ),
+                                  child: Slider(
+                                    value: volume,
+                                    min: 0,
+                                    max: 1,
+                                    onChanged: (val) =>
+                                        AudioService.setVolume(val),
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                "${(volume * 100).round()}%",
+                                style: TextStyle(
+                                  color: theme.textColor.withOpacity(0.7),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(left: 48.0, top: 4.0),
+                            child: Text(
+                              "* Bu ayar cihazın ana ses seviyesi içinde uygulama içi özel bir ses oranı belirler ve her açılışta bu seviyeyle başlar (Sessiz konum kaydedilmez).",
+                              style: TextStyle(
+                                color: theme.textColor.withOpacity(0.4),
+                                fontSize: 10,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
                 // Sleep Timer Section
                 ValueListenableBuilder<int>(
                   valueListenable: Degiskenler.sleepTimerRemainingNotifier,
@@ -454,37 +530,46 @@ class SettingsMenu extends StatelessWidget {
                       theme,
                       "Zamanlayıcı",
                       Icons.timer_outlined,
-                      Row(
+                      null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            statusText,
-                            style: TextStyle(
-                              color: remainingTime > 0
-                                  ? theme.accentColor
-                                  : theme.subTextColor,
-                              fontWeight: FontWeight.w500,
+                          if (remainingTime > 0) ...[
+                            Text(
+                              statusText,
+                              style: TextStyle(
+                                color: theme.accentColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          if (remainingTime > 0)
                             IconButton(
                               onPressed: () => AudioService.cancelSleepTimer(),
                               icon: const Icon(Icons.cancel_outlined,
-                                  color: Colors.redAccent),
+                                  color: Colors.redAccent, size: 20),
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              constraints: const BoxConstraints(),
                             ),
+                          ],
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.accentColor.withOpacity(0.2),
+                              backgroundColor:
+                                  theme.accentColor.withOpacity(0.15),
                               elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 0),
+                              minimumSize: const Size(0, 32),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                             ),
                             onPressed: () =>
                                 _showSleepTimerDialog(context, theme),
-                            child: Text("Ayarla",
+                            child: Text(
+                                remainingTime > 0 ? "Güncelle" : "Ayarla",
                                 style: TextStyle(
                                     color: theme.accentColor,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.bold)),
                           ),
                         ],
@@ -499,16 +584,21 @@ class SettingsMenu extends StatelessWidget {
                 ValueListenableBuilder<bool>(
                   valueListenable: Degiskenler.isSyncedNotifier,
                   builder: (context, isSynced, _) {
-                    return _buildSettingSection(
-                      theme,
-                      "Senkronizasyon",
-                      isSynced
-                          ? Icons.cloud_done_rounded
-                          : Icons.cloud_off_rounded,
-                      InkWell(
-                        onTap: isSynced ? null : () => SyncDialog.show(context),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Row(
+                    return GestureDetector(
+                      onTap: () {
+                        if (!isSynced) {
+                          SyncDialog.show(context);
+                        }
+                      },
+                      child: _buildSettingSection(
+                        theme,
+                        "Senkronizasyon",
+                        isSynced
+                            ? Icons.cloud_done_rounded
+                            : Icons.cloud_off_rounded,
+                        null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               isSynced ? "Bağlı" : "Bağlı Değil",
@@ -517,21 +607,23 @@ class SettingsMenu extends StatelessWidget {
                                     ? Colors.greenAccent
                                     : theme.subTextColor,
                                 fontWeight: FontWeight.w500,
+                                fontSize: 13,
                               ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             if (isSynced)
                               TextButton.icon(
                                 onPressed: () =>
                                     _showLogoutDialog(context, theme),
                                 icon: const Icon(Icons.logout_rounded,
                                     color: Colors.redAccent, size: 18),
-                                label: const Text("Bağlantıyı Sırla",
-                                    style: TextStyle(color: Colors.redAccent)),
+                                label: const Text("Bağlantıyı Kes",
+                                    style: TextStyle(
+                                        color: Colors.redAccent, fontSize: 13)),
                               )
                             else
                               Icon(Icons.arrow_forward_ios_rounded,
-                                  color: theme.accentColor, size: 16),
+                                  color: theme.accentColor, size: 14),
                           ],
                         ),
                       ),
@@ -548,13 +640,9 @@ class SettingsMenu extends StatelessWidget {
                     theme,
                     "İrtibat",
                     Icons.chat_bubble_outline_rounded,
-                    Row(
-                      children: [
-                        const Spacer(),
-                        Icon(Icons.arrow_forward_ios_rounded,
-                            color: theme.accentColor, size: 16),
-                      ],
-                    ),
+                    null,
+                    trailing: Icon(Icons.arrow_forward_ios_rounded,
+                        color: theme.accentColor, size: 16),
                   ),
                 ),
 
@@ -641,7 +729,8 @@ class SettingsMenu extends StatelessWidget {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Container(
                                             height: 6,
@@ -728,6 +817,47 @@ class SettingsMenu extends StatelessWidget {
                   ),
                 ),
 
+                const SizedBox(height: 24),
+                // Time Display Section
+                ValueListenableBuilder<bool>(
+                  valueListenable: Degiskenler.onlySecondsNotifier,
+                  builder: (context, onlySeconds, child) {
+                    return _buildSettingSection(
+                      theme,
+                      "Zaman Gösterimi",
+                      Icons.timer_outlined,
+                      null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            onlySeconds ? "Saniye" : "Dakika:Saniye",
+                            style: TextStyle(
+                              color: theme.textColor.withOpacity(0.5),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Switch(
+                            value: onlySeconds,
+                            activeColor: theme.accentColor,
+                            activeTrackColor:
+                                theme.accentColor.withOpacity(0.3),
+                            inactiveThumbColor:
+                                theme.textColor.withOpacity(0.3),
+                            inactiveTrackColor:
+                                theme.textColor.withOpacity(0.1),
+                            onChanged: (value) {
+                              Degiskenler.onlySecondsNotifier.value = value;
+                              Degiskenler.saveOnlySeconds(value);
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 48),
                 Text(
                   "Âteş-i Aşk",
@@ -752,7 +882,8 @@ class SettingsMenu extends StatelessWidget {
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+              border:
+                  Border.all(color: Colors.white.withOpacity(0.1), width: 1),
             ),
           ),
           const SizedBox(height: 6),
@@ -770,7 +901,8 @@ class SettingsMenu extends StatelessWidget {
   }
 
   Widget _buildSettingSection(
-      AppTheme theme, String title, IconData icon, Widget content) {
+      AppTheme theme, String title, IconData icon, Widget? content,
+      {Widget? trailing}) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -791,10 +923,16 @@ class SettingsMenu extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              if (trailing != null) ...[
+                Spacer(),
+                trailing,
+              ],
             ],
           ),
-          SizedBox(height: 16),
-          content,
+          if (content != null) ...[
+            SizedBox(height: 16),
+            content,
+          ],
         ],
       ),
     );
