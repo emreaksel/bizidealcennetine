@@ -4,6 +4,8 @@ import '../yaveran/app_theme.dart';
 import '../yaveran/MusicApiService.dart';
 import '../yaveran/audio_service.dart';
 import 'sync_dialog.dart';
+import '../screens/log_view_screen.dart';
+import '../yaveran/log_service.dart';
 
 class SettingsMenu extends StatelessWidget {
   final MusicApiService _apiService = MusicApiService();
@@ -634,18 +636,26 @@ class SettingsMenu extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // Contact Section
+                // System Logs Section
                 GestureDetector(
-                  onTap: () => _showContactForm(context, theme),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LogViewScreen()),
+                    );
+                    LogService().info("Sistem logları görüntülendi", tag: "UI");
+                  },
                   child: _buildSettingSection(
                     theme,
-                    "İrtibat",
-                    Icons.chat_bubble_outline_rounded,
+                    "Sistem Logları",
+                    Icons.terminal_rounded,
                     null,
                     trailing: Icon(Icons.arrow_forward_ios_rounded,
                         color: theme.accentColor, size: 16),
                   ),
                 ),
+
+                const SizedBox(height: 24),
 
                 const SizedBox(height: 24),
 

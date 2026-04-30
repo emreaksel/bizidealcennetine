@@ -8,9 +8,11 @@ import 'yaveran/Degiskenler.dart';
 import 'yaveran/logic.dart';
 import 'widgets/splash_screen.dart';
 import 'screens/main_screen.dart';
+import 'yaveran/log_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LogService().info("Uygulama başlatılıyor...", tag: "System");
 
   // Firebase'i başlat
   await Firebase.initializeApp(
@@ -19,11 +21,13 @@ void main() async {
 
   // Crashlytics'i yapılandır
   FlutterError.onError = (errorDetails) {
+    LogService().error("Flutter Hatası: ${errorDetails.exception}", tag: "System");
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
   };
   
   // Platform tabanlı hataları yakala (Asenkron hatalar vb.)
   PlatformDispatcher.instance.onError = (error, stack) {
+    LogService().error("Asenkron Hata: $error", tag: "System");
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };

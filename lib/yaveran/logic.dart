@@ -10,6 +10,7 @@ import 'JsonHelper.dart';
 import 'ui_support.dart';
 import 'audio_service.dart' as app_audio;
 import 'MusicApiService.dart';
+import 'log_service.dart';
 
 final appLinks = AppLinks();
 
@@ -18,11 +19,12 @@ String? _lastHandledLink;
 DateTime? _lastHandleTime;
 
 Future<void> arkaplanIslemleri() async {
+  LogService().info("Arkaplan işlemleri başlatılıyor...", tag: "Logic");
   Degiskenler.hazirlaniyor = true;
   await Degiskenler.loadTheme();
 
   try {
-    print("Initializing AudioService...");
+    LogService().info("Ses servisi başlatılıyor...", tag: "Logic");
     await app_audio.AudioService.init();
     await app_audio.AudioService.loadVolume();
   } catch (e) {
@@ -121,6 +123,11 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
     playlist.add(
       AudioSource.uri(
         Uri.parse(url),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+          'Accept': '*/*',
+          'Connection': 'keep-alive',
+        },
         tag: MediaItem(
             id: '${item['sira_no']}',
             album: item['parca_adi'] ?? '...',
@@ -143,7 +150,7 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
     }
 
     final initialLink = await appLinks.getInitialLink();
-    print("initialLink $initialLink");
+    LogService().info("Açılış linki kontrol ediliyor: $initialLink", tag: "Link");
 
     if (initialLink != null) {
       handleLinkCallback(initialLink.toString());
@@ -151,7 +158,7 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
 
     appLinks.uriLinkStream.listen((Uri? uri) {
       if (uri != null) {
-        print("uriLinkStream $uri");
+        LogService().info("Yeni link alındı: $uri", tag: "Link");
         handleLinkCallback(uri.toString());
       }
     });

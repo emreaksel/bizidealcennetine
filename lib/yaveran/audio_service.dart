@@ -12,6 +12,7 @@ import 'package:bizidealcennetine/yaveran/Notifier.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:bizidealcennetine/yaveran/MusicApiService.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bizidealcennetine/yaveran/log_service.dart';
 
 /// Audio service handler sınıfı
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
@@ -135,10 +136,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   Future<void> _init() async {
+    LogService().info("Ses servisi başlatılıyor...", tag: "Audio");
     _player = AudioPlayer();
 
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.music());
+    LogService().info("Audio session yapılandırıldı", tag: "Audio");
 
     session.interruptionEventStream.listen((event) async {
       if (event.begin) {
@@ -208,13 +211,13 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           if (_player!.playing) {
             _lastPlayStartTime = DateTime.now();
           }
+
+          mediaItem.add(queue.value[index]);
+          AudioService.setCurrentTrack(index);
+
+          await Future.delayed(const Duration(milliseconds: 100));
+          UI_support.changeImageAndEpigram();
         }
-
-        mediaItem.add(queue.value[index]);
-        AudioService.setCurrentTrack(index);
-
-        await Future.delayed(const Duration(milliseconds: 100));
-        UI_support.changeImageAndEpigram();
       }
     });
 
@@ -264,6 +267,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         }
       }
     });
+
   }
 
   AudioServiceRepeatMode _convertLoopMode(LoopMode loopMode) {
@@ -304,6 +308,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       queueIndex: _player!.currentIndex,
     ));
 
+    LogService().debug("Playback state: $processingState, playing: $playing, index: ${_player!.currentIndex}", tag: "Audio");
+
     if (processingState == AudioProcessingState.loading ||
         processingState == AudioProcessingState.buffering) {
       AudioService.playButtonNotifier.value = ButtonState.loading;
@@ -331,6 +337,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> play() async {
+    LogService().info("Play komutu alındı", tag: "Audio");
     await _player!.play();
   }
 
@@ -424,7 +431,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> setAudioSource(ConcatenatingAudioSource source,
       {int? initialIndex}) async {
-    await _player!.setAudioSource(source, initialIndex: initialIndex);
+    try {
+      LogService().info("Audio source set ediliyor (count: ${source.length}, initial: $initialIndex)", tag: "Audio");
+      await _player!.setAudioSource(source, initialIndex: initialIndex);
+      LogService().info("Audio source başarıyla set edildi", tag: "Audio");
+    } catch (e, stack) {
+      LogService().error("Audio source set hatası: $e", tag: "Audio");
+      LogService().debug("Stacktrace: $stack", tag: "Audio");
+      rethrow;
+    }
   }
 
   Future<void> setVolume(double volume) async {
@@ -568,7 +583,16 @@ class AudioService {
 
             // Gelen parçayı listenin en başına koy ki oradan başlasın
             playlist.insert(
-                0, AudioSource.uri(Uri.parse(item['url']), tag: mediaItem));
+                0,
+                AudioSource.uri(
+                  Uri.parse(item['url']),
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+                    'Accept': '*/*',
+                    'Connection': 'keep-alive',
+                  },
+                  tag: mediaItem,
+                ));
             mediaItems.insert(0, mediaItem);
             initialIndex = 0;
             isShareableNotifier.value = false;
@@ -594,6 +618,14 @@ class AudioService {
     }
 
     await _audioHandler!.updateQueue(mediaItems);
+
+    LogService().info("Playlist kuruluyor. Toplam parça: ${playlist.length}, Başlangıç: $initialIndex", tag: "Audio");
+    
+    for(int i=0; i<min(5, playlist.length); i++){
+       if(playlist[i] is UriAudioSource) {
+         LogService().debug("Örnek URL [$i]: ${(playlist[i] as UriAudioSource).uri}", tag: "Audio");
+       }
+    }
 
     await _audioHandler!.setAudioSource(
       ConcatenatingAudioSource(children: playlist, useLazyPreparation: true),
@@ -692,6 +724,11 @@ class AudioService {
       mediaItems.add(mItem);
       sources.add(AudioSource.uri(
         Uri.parse(song['url'] ?? ""),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+          'Accept': '*/*',
+          'Connection': 'keep-alive',
+        },
         tag: mItem,
       ));
     }
@@ -732,6 +769,11 @@ class AudioService {
 
     AudioSource newSource = AudioSource.uri(
       Uri.parse(yol),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Connection': 'keep-alive',
+      },
       tag: mediaItem,
     );
 
@@ -782,6 +824,11 @@ class AudioService {
 
     AudioSource newSource = AudioSource.uri(
       Uri.parse(yol),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Connection': 'keep-alive',
+      },
       tag: mediaItem,
     );
 

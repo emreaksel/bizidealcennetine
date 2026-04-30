@@ -7,6 +7,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:uuid/uuid.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
+import 'package:bizidealcennetine/yaveran/log_service.dart';
 
 class MusicApiService {
   final storage = const FlutterSecureStorage();
@@ -103,6 +104,7 @@ class MusicApiService {
 
   Future<bool> exchangeCodeWithServer(String pairingCode) async {
     try {
+      LogService().info("Eşleştirme kodu gönderiliyor: $pairingCode", tag: "API");
       final response = await http.post(
         Uri.parse('$baseUrl/api/music/auth/exchange-code'),
         headers: {'Content-Type': 'application/json'},
@@ -110,6 +112,7 @@ class MusicApiService {
       );
 
       if (response.statusCode == 200) {
+        LogService().info("Eşleştirme başarılı", tag: "API");
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final token = data['token'];
 
@@ -160,6 +163,7 @@ class MusicApiService {
         return false;
       }
     } catch (e) {
+      LogService().error("Dokunma hatası: $e", tag: "API");
       print('Ağ hatası (toggleLike): $e');
       return false;
     }
@@ -314,8 +318,10 @@ class MusicApiService {
       );
 
       if (response.statusCode == 200) {
+        LogService().info("Ateşi Aşk verileri çekildi", tag: "API");
         return jsonDecode(utf8.decode(response.bodyBytes));
       } else {
+        LogService().error("Ateşi Aşk verileri çekilemedi: ${response.statusCode}", tag: "API");
         print('fetchAtesiAskSub başarısız: ${response.statusCode}');
         return {};
       }
@@ -343,6 +349,7 @@ class MusicApiService {
         return null;
       }
     } catch (e) {
+      LogService().error("Ateşi Aşk link hatası: $e", tag: "API");
       print('Ağ hatası (fetchAtesiAskLink): $e');
       return null;
     }
