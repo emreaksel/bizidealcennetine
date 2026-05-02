@@ -31,6 +31,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   bool _wasPlayingBeforeInterruption = false;
   bool _manualPauseRequested = false;
+  bool _isStopped = false;
 
   // ── Dinleme Logu ───────────────────────────────────────────
   int _currentLogTrackId = -1;
@@ -230,6 +231,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       });
 
       _player.currentIndexStream.listen((index) async {
+        if (_isStopped) return;
         if (index == null || queue.value.isEmpty || index >= queue.value.length)
           return;
 
@@ -315,6 +317,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   void _broadcastState(PlaybackEvent event) {
+    if (_isStopped) return;
     final playing = _player.playing;
     final state = _convertProcessingState(_player.processingState);
 
@@ -398,6 +401,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> stop() async {
+    _isStopped = true;
     _finalizeLogForCurrentTrack();
     playbackState.add(playbackState.value.copyWith(
       playing: false,
@@ -478,6 +482,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     int initialIndex = 0,
   }) async {
     await initialized; // ← init tamamlanmadan devam etme
+    _isStopped = false;
     LogService().info(
         "Playlist yükleniyor — ${sources.length} parça, başlangıç: $initialIndex",
         tag: "Audio");
@@ -774,6 +779,8 @@ class AudioService {
   /// Soğuk başlangıçta stream race condition'ını tamamen önler.
   /// Polling + exponential backoff ile hem state hem de gerçek ses çıkışını garantiler.
   static Future<void> _waitForReadyThenPlay() async {
+    // ── Explicit play niyeti → manual pause flag'ini sıfırla ──
+    _audioHandler!._manualPauseRequested = false;
     final player = _audioHandler!.player;
     LogService().info("_waitForReadyThenPlay: polling başladı. Mevcut state=${player.processingState}", tag: "Audio-ColdStart");
 

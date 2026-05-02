@@ -39,7 +39,7 @@ class AppTheme {
         name: "Süveyda",
         backgroundColor: const Color(0xFF000000),
         cardColor: const Color(0xFF111111),
-        accentColor: const Color(0xFFFFFFFF),
+        accentColor: const Color(0xFF9E9E9E),
         textColor: _mainText,
         subTextColor: _subText,
       );
