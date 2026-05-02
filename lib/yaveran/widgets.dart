@@ -1,6 +1,5 @@
 import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../widgets/sync_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/svg.dart';
@@ -88,9 +87,12 @@ class CurrentSongTitle extends StatelessWidget {
           valueListenable: Degiskenler.currentThemeNotifier,
           builder: (context, theme, _) {
             return Padding(
-              padding: const EdgeInsets.only(top: 8.0),
+              padding: EdgeInsets.zero,
               child: Text(
                 title,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: UISize.fontSize(context),
                   color: theme.textColor,
@@ -114,9 +116,12 @@ class CurrentSongSubTitle extends StatelessWidget {
           valueListenable: Degiskenler.currentThemeNotifier,
           builder: (context, theme, _) {
             return Padding(
-              padding: const EdgeInsets.only(top: 8.0),
+              padding: EdgeInsets.zero,
               child: Text(
                 title,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: UISize.fontSize(context),
                   color: theme.textColor.withOpacity(0.6),
@@ -510,7 +515,8 @@ class _ShareButtonState extends State<ShareButton> {
                           Degiskenler.parcaIndex.toString()) {
                         if (item['hyperlink'] != null &&
                             item['hyperlink'].toString().isNotEmpty) {
-                          shareLink = 'https://benolanben.com/${item['hyperlink']}';
+                          shareLink =
+                              'https://benolanben.com/${item['hyperlink']}';
                         }
                         break;
                       }
@@ -520,8 +526,8 @@ class _ShareButtonState extends State<ShareButton> {
                   }
 
                   // iOS/iPad: GlobalKey üzerinden RenderBox alıyoruz.
-                  final renderBox =
-                      _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+                  final renderBox = _buttonKey.currentContext
+                      ?.findRenderObject() as RenderBox?;
                   Rect? sharePositionOrigin;
                   if (renderBox != null && renderBox.hasSize) {
                     sharePositionOrigin =
@@ -628,7 +634,6 @@ class _LikeButtonState extends State<LikeButton> {
       if (mounted) setState(() => _isLiked = false);
     }
   }
-
 
   void _handleLikeToggle() async {
     if (_isLoading) return;
@@ -752,55 +757,87 @@ class AudioControlButtons extends StatelessWidget {
                 Column(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 3.0),
-                          child: Row(
+                    LayoutBuilder(builder: (context, constraints) {
+                      return ValueListenableBuilder<String>(
+                        valueListenable: AudioService.currentSongTitleNotifier,
+                        builder: (context, title, _) {
+                          final fontSize = UISize.fontSize(context);
+                          final painter = TextPainter(
+                            text: TextSpan(
+                                text: title,
+                                style: TextStyle(
+                                    fontSize: fontSize,
+                                    fontWeight: FontWeight.bold)),
+                            textDirection: TextDirection.ltr,
+                          )..layout();
+
+                          // Yaklaşık ikon alanı (Like + Share + paddingler)
+                          double iconSpace = UISize.iconSize(context) * 2 + 64;
+                          bool isLong = painter.width >
+                              (constraints.maxWidth - iconSpace);
+
+                          return Column(
                             children: [
-                              LikeButton(),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    CurrentSongTitle(),
-                                    CurrentSongSubTitle(),
-                                  ],
+                              if (isLong) ...[
+                                // Uzun başlık düzeni: Başlık üstte tam genişlik, ikonlar altta
+                                const SizedBox(height: 12),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24.0),
+                                  child: CurrentSongTitle(),
                                 ),
-                              ),
-                              ShareButton(),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                                  child: Row(
+                                    children: [
+                                      LikeButton(),
+                                      Expanded(child: CurrentSongSubTitle()),
+                                      ShareButton(),
+                                    ],
+                                  ),
+                                ),
+                              ] else ...[
+                                // Normal düzen: İkonlar ve başlık aynı satırda
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 3.0),
+                                  child: Row(
+                                    children: [
+                                      LikeButton(),
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            const SizedBox(height: 8),
+                                            CurrentSongTitle(),
+                                            const SizedBox(height: 4),
+                                            CurrentSongSubTitle(),
+                                          ],
+                                        ),
+                                      ),
+                                      ShareButton(),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SeekBar(),
                             ],
-                          ),
-                        ),
-                        SeekBar(),
-                      ],
-                    )
+                          );
+                        },
+                      );
+                    })
                   ],
                 ),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 16.0, horizontal: 12.0),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     if (showTrackNames) ListButton() else BackButton(),
-
-                    // Orta Grup (Geri, Oynat, İleri) - Merkeze daha yakın
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        PreviousSongButton(),
-                        const SizedBox(
-                            width:
-                                24), // 8 -> 24 yapıldı, birbirine girmesinler
-                        PlayButton(),
-                        const SizedBox(
-                            width:
-                                24), // 8 -> 24 yapıldı, birbirine girmesinler
-                        NextSongButton(),
-                      ],
-                    ),
-
+                    PreviousSongButton(),
+                    PlayButton(),
+                    NextSongButton(),
                     RepeatButton(),
                   ],
                 ),

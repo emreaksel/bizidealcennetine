@@ -775,7 +775,7 @@ class SettingsMenu extends StatelessWidget {
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
+                          crossAxisCount: 4,
                           mainAxisSpacing: 8,
                           crossAxisSpacing: 8,
                           childAspectRatio: 1.9,

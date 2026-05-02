@@ -211,6 +211,14 @@ Future<void> fetchData_jsonDinlemeListesi(String url, String link,
   try {
     final Map<String, dynamic> jsonData = await compute(getirJsonData, url);
     List<dynamic> listDinle = jsonData["sesler"];
+    if (Degiskenler.bekleyenHediyeLink != null ||
+        Degiskenler.bekleyenHediyeId != null) {
+      playNow = true;
+      LogService().info(
+        "Hediye link bekleniyor, json dinleme listesi playNow=true ile yüklenecek",
+        tag: "Logic",
+      );
+    }
     await setPlaylist(listDinle, playNow: playNow);
   } catch (error) {
     print("Hata oluştu: $error");
