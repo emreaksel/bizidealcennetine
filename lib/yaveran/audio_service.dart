@@ -23,7 +23,7 @@ import 'package:bizidealcennetine/yaveran/log_service.dart';
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   // ── Player & Playlist ──────────────────────────────────────
   late final AudioPlayer _player;
-  late final ConcatenatingAudioSource _concatenatingSource;
+  late ConcatenatingAudioSource _concatenatingSource;
 
   // ── YENİ: init tamamlanana kadar diğer operasyonları bekletir ──
   final Completer<void> _initCompleter = Completer<void>();
@@ -45,10 +45,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   // ── Constructor ────────────────────────────────────────────
   MyAudioHandler() {
-    _concatenatingSource = ConcatenatingAudioSource(
-      useLazyPreparation: true,
-      children: [],
-    );
     _loadLogs();
     _init(); // async ama bilerek await edilmiyor
     _persistenceTimer = Timer.periodic(const Duration(seconds: 15), (_) {
@@ -495,22 +491,26 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     final mediaItems =
         sources.map((s) => (s as UriAudioSource).tag as MediaItem).toList();
 
-    await _concatenatingSource.clear();
+    // Player'a bağlı OLMAYAN yeni bir source oluştur.
+    // Doldururken player hiçbir event almaz → flaş yok, yanlış parça yok.
+    final newSource = ConcatenatingAudioSource(
+      useLazyPreparation: true,
+      children: [],
+    );
 
-    // Tüm parçaları setAudioSource'dan ÖNCE, 50'lik gruplar halinde ekle.
-    // useLazyPreparation:true sayesinde iOS native'de hazırlamaz → çökme olmaz.
     const int chunkSize = 50;
     for (int i = 0; i < sources.length; i += chunkSize) {
       final end = (i + chunkSize).clamp(0, sources.length);
-      await _concatenatingSource.addAll(sources.sublist(i, end));
+      await newSource.addAll(sources.sublist(i, end));
       if (end < sources.length) {
         await Future.delayed(const Duration(milliseconds: 20));
       }
     }
 
+    // Liste tamamen hazır, şimdi player'a bağla
+    _concatenatingSource = newSource;
     queue.add(mediaItems);
 
-    // Tüm parçalar hazır, doğru index'ten başlat
     await _player.setAudioSource(
       _concatenatingSource,
       initialIndex: safeIndex,
