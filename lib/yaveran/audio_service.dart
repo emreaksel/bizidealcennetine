@@ -45,7 +45,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   // ── Constructor ────────────────────────────────────────────
   MyAudioHandler() {
-    _concatenatingSource = ConcatenatingAudioSource(children: []);
+    _concatenatingSource = ConcatenatingAudioSource(
+      useLazyPreparation: true,
+      children: [],
+    );
     _loadLogs();
     _init(); // async ama bilerek await edilmiyor
     _persistenceTimer = Timer.periodic(const Duration(seconds: 15), (_) {
@@ -481,23 +484,36 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     List<AudioSource> sources, {
     int initialIndex = 0,
   }) async {
-    await initialized; // ← init tamamlanmadan devam etme
+    await initialized;
     _isStopped = false;
+
+    final safeIndex = initialIndex.clamp(0, sources.length - 1);
     LogService().info(
-        "Playlist yükleniyor — ${sources.length} parça, başlangıç: $initialIndex",
+        "Playlist yükleniyor — ${sources.length} parça, başlangıç: $safeIndex",
         tag: "Audio");
 
     final mediaItems =
         sources.map((s) => (s as UriAudioSource).tag as MediaItem).toList();
 
     await _concatenatingSource.clear();
-    await _concatenatingSource.addAll(sources);
+
+    // Tüm parçaları setAudioSource'dan ÖNCE, 50'lik gruplar halinde ekle.
+    // useLazyPreparation:true sayesinde iOS native'de hazırlamaz → çökme olmaz.
+    const int chunkSize = 50;
+    for (int i = 0; i < sources.length; i += chunkSize) {
+      final end = (i + chunkSize).clamp(0, sources.length);
+      await _concatenatingSource.addAll(sources.sublist(i, end));
+      if (end < sources.length) {
+        await Future.delayed(const Duration(milliseconds: 20));
+      }
+    }
 
     queue.add(mediaItems);
 
+    // Tüm parçalar hazır, doğru index'ten başlat
     await _player.setAudioSource(
       _concatenatingSource,
-      initialIndex: initialIndex.clamp(0, sources.length - 1),
+      initialIndex: safeIndex,
     );
   }
 
