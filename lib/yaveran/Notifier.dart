@@ -6,6 +6,11 @@ class PlayButtonNotifier extends ValueNotifier<ButtonState> {
 }
 enum ButtonState { paused, playing, loading, }
 
+// YENİ EKLENDİ: Liste yükleme durumunu anlık olarak takip etmek için.
+class PlaylistLoadingNotifier extends ValueNotifier<bool> {
+  PlaylistLoadingNotifier() : super(false);
+}
+
 class RepeatButtonNotifier extends ValueNotifier<RepeatState> {
   RepeatButtonNotifier() : super(_initialValue);
   static const _initialValue = RepeatState.off;
@@ -35,48 +40,3 @@ class ProgressBarState {
   final Duration buffered;
   final Duration total;
 }
-/*
-
-class EkranBoyutModel {
-  int altEkranBoyut;
-  int ustEkranBoyut;
-  int ustEkranAktifIndex;
-
-  EkranBoyutModel(
-      {required this.altEkranBoyut,
-        required this.ustEkranBoyut,
-        required this.ustEkranAktifIndex});
-}
-class EkranBoyutNotifier extends ChangeNotifier {
-  EkranBoyutModel _ekranBoyutModel = EkranBoyutModel(
-      altEkranBoyut: 20, ustEkranBoyut: 80, ustEkranAktifIndex: 0);
-
-  int get altEkranBoyut => _ekranBoyutModel.altEkranBoyut;
-
-  int get ustEkranBoyut => _ekranBoyutModel.ustEkranBoyut;
-
-  int get ustEkranAktifIndex => _ekranBoyutModel.ustEkranAktifIndex;
-
-  set altEkranBoyut(int value) {
-    _ekranBoyutModel.altEkranBoyut = value;
-    notifyListeners();
-  }
-
-  set ustEkranBoyut(int value) {
-    _ekranBoyutModel.ustEkranBoyut = value;
-    notifyListeners();
-  }
-
-  set ustEkranAktifIndex(int value) {
-    _ekranBoyutModel.ustEkranAktifIndex = value;
-    notifyListeners();
-  }
-
-  setEkranBoyut(int altEkranBoyut, int ustEkranBoyut, int ustEkranAktifIndex) {
-      _ekranBoyutModel.altEkranBoyut = altEkranBoyut;
-      _ekranBoyutModel.ustEkranBoyut = ustEkranBoyut;
-      _ekranBoyutModel.ustEkranAktifIndex = ustEkranAktifIndex;
-      notifyListeners();
-  }
-
-}*/

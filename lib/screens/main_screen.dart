@@ -80,17 +80,24 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                     },
                   ),
                 ),
-                ValueListenableBuilder<ButtonState>(
-                  valueListenable: AudioService.playButtonNotifier,
-                  builder: (context, value, child) {
-                    // Yükleme durumunu bir boolean değere çeviriyoruz
-                    final bool isCurrentlyLoading =
-                        (value == ButtonState.loading);
+                // --- YENİ DÜZENLEME ---
+                // İki farklı yükleme durumunu dinleyerek SpiritualLoader'ı anında tetikliyoruz.
+                ValueListenableBuilder<bool>(
+                  // 1. DURUM: Playlist'in hazırlanma durumu (manuel tetikleme).
+                  valueListenable: AudioService.playlistLoadingNotifier,
+                  builder: (context, isPlaylistLoading, child) {
+                    return ValueListenableBuilder<ButtonState>(
+                      // 2. DURUM: Player'ın kendi yükleme/buffer durumu.
+                      valueListenable: AudioService.playButtonNotifier,
+                      builder: (context, buttonState, child) {
+                        // İki durumdan herhangi biri "yükleniyor" ise loader'ı göster.
+                        final bool isPlayerLoading = (buttonState == ButtonState.loading);
+                        final bool shouldShowLoader = isPlaylistLoading || isPlayerLoading;
 
-                    // DİKKAT: Container() döndürmüyoruz!
-                    // Widget her zaman burada duruyor, animasyonu kendi içinde yönetecek.
-                    return SpiritualLoader(
-                      isLoading: isCurrentlyLoading,
+                        return SpiritualLoader(
+                          isLoading: shouldShowLoader,
+                        );
+                      },
                     );
                   },
                 ),

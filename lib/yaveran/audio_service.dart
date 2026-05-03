@@ -16,16 +16,12 @@ import 'package:bizidealcennetine/yaveran/log_service.dart';
 
 // ══════════════════════════════════════════════════════════════
 //  MyAudioHandler
-//  - _player artık instance değişkeni (static değil → sızıntı yok)
-//  - ConcatenatingAudioSource ile parça ekleme player'ı resetlemez
-//  - _checkAndSendPendingLogs finally bloğuyla kilitlenmeye karşı korumalı
 // ══════════════════════════════════════════════════════════════
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   // ── Player & Playlist ──────────────────────────────────────
   late final AudioPlayer _player;
   late ConcatenatingAudioSource _concatenatingSource;
 
-  // ── YENİ: init tamamlanana kadar diğer operasyonları bekletir ──
   final Completer<void> _initCompleter = Completer<void>();
   Future<void> get initialized => _initCompleter.future;
 
@@ -48,7 +44,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _loadLogs();
     _init(); // async ama bilerek await edilmiyor
     _persistenceTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      // _player henüz initialize olmamış olabilir → guard ekle
       if (_initCompleter.isCompleted && _player.playing) {
         _updateAccumulatedTime();
       }
@@ -69,7 +64,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       for (final el in parsed) {
         final log = Map<String, dynamic>.from(el as Map);
         if (log['status'] == 'current') {
-          // Yarım kalan log yalnızca 30s+ ise tamamlanmış kabul edilir
           if ((log['listenDuration'] as int? ?? 0) >= 30) {
             log['status'] = 'completed';
             _pendingLogs.add(log);
@@ -86,8 +80,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> _saveLogsToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Mevcut oturumun anlık snapshot'ı (persist için)
     final snapshot = [
       ..._pendingLogs,
       if (_currentLogTrackId != -1 && _accumulatedListenSeconds > 0)
@@ -114,7 +106,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _saveLogsToPrefs();
   }
 
-  /// finally garantisiyle _isSendingLogs kilidi daima açılır
   Future<void> _checkAndSendPendingLogs() async {
     if (_isSendingLogs || _pendingLogs.isEmpty) return;
     _isSendingLogs = true;
@@ -135,10 +126,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       if (successful.isNotEmpty) {
         _pendingLogs.removeWhere((l) => successful.any((s) =>
             s['timestamp'] == l['timestamp'] && s['musicId'] == l['musicId']));
-        await _saveLogsToPrefs(); // Yalnızca değişiklik varsa kaydet
+        await _saveLogsToPrefs();
       }
     } finally {
-      // Hata olsa bile kilit daima serbest bırakılır
       _isSendingLogs = false;
     }
   }
@@ -177,12 +167,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
       final session = await AudioSession.instance;
       await session.configure(AudioSessionConfiguration.music());
-
-      // ── YENİ: Session'ı aktif et → Android audio focus alınır ──
       await session.setActive(true);
       LogService().info("Audio session aktif edildi", tag: "Audio");
 
-      // Telefon araması / alarm kesintisi yönetimi
       session.interruptionEventStream.listen((event) async {
         if (event.begin) {
           _wasPlayingBeforeInterruption = _player.playing;
@@ -231,11 +218,13 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
       _player.currentIndexStream.listen((index) async {
         if (_isStopped) return;
+        // Yükleme sırasında ara index emitlerini yoksay
+        if (AudioService.playlistLoadingNotifier.value) return;
         if (index == null || queue.value.isEmpty || index >= queue.value.length)
           return;
 
         final newId = int.tryParse(queue.value[index].id) ?? -1;
-        if (newId == _currentLogTrackId) return; // Aynı parça, geç
+        if (newId == _currentLogTrackId) return;
 
         _finalizeLogForCurrentTrack();
         _currentLogTrackId = newId;
@@ -255,7 +244,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
       _player.playingStream.listen((playing) {
         if (playing) {
-          _lastPlayStartTime ??= DateTime.now(); // Null ise başlat
+          _lastPlayStartTime ??= DateTime.now();
         } else {
           _updateAccumulatedTime();
           _lastPlayStartTime = null;
@@ -280,7 +269,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
       await _player.setShuffleModeEnabled(true);
 
-      // Arka plan bildirim görseli güncellemesi
       Degiskenler.currentImageNotifier.addListener(() {
         if (mediaItem.value == null) return;
         final name = Degiskenler.currentImageNotifier.value;
@@ -291,7 +279,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         }
       });
 
-      _initCompleter.complete(); // ← init tamam sinyali
+      _initCompleter.complete();
     } catch (e, st) {
       if (!_initCompleter.isCompleted) {
         _initCompleter.completeError(e, st);
@@ -376,10 +364,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> play() async {
     await initialized;
     _manualPauseRequested = false;
-    LogService().info("MyAudioHandler.play() çağrıldı. state=${_player.processingState}, playing=${_player.playing}", tag: "Audio-ColdStart");
+    LogService().info(
+        "MyAudioHandler.play() çağrıldı. state=${_player.processingState}, playing=${_player.playing}",
+        tag: "Audio-ColdStart");
 
-    // Soğuk başlangıçta Android foreground servis henüz aktif olmayabilir.
-    // processingState idle ise setAudioSource yapılmamış demektir — güvenli geç.
     if (_player.processingState == ProcessingState.idle) {
       LogService().warn(
         "play() çağrıldı ama player idle — atlanıyor",
@@ -388,7 +376,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       return;
     }
 
-    LogService().info("Gerçekten _player.play() çağrılıyor", tag: "Audio-ColdStart");
+    LogService()
+        .info("Gerçekten _player.play() çağrılıyor", tag: "Audio-ColdStart");
     return _player.play();
   }
 
@@ -472,52 +461,66 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   // ════════════════════════════════════════════════════════════
-  //  PLAYLIST YÖNETİMİ — ConcatenatingAudioSource
+  //  PLAYLIST YÖNETİMİ
   // ════════════════════════════════════════════════════════════
 
-  /// Tüm playlist'i sıfırlar ve yeniden yükler (player tam reset)
+  @override
   Future<void> loadPlaylist(
     List<AudioSource> sources, {
     int initialIndex = 0,
   }) async {
-    await initialized;
-    _isStopped = false;
+    // YENİ: UI'a yüklemenin BAŞLADIĞINI anında bildir.
+    AudioService.playlistLoadingNotifier.value = true;
+    // UI'ın güncellenmesi için kısa bir mola ver.
+    await Future.delayed(const Duration(milliseconds: 50));
 
+    // safeIndex'i try'ın dışında tanımla, finally'de erişebilmek için
     final safeIndex = initialIndex.clamp(0, sources.length - 1);
-    LogService().info(
-        "Playlist yükleniyor — ${sources.length} parça, başlangıç: $safeIndex",
-        tag: "Audio");
 
-    final mediaItems =
-        sources.map((s) => (s as UriAudioSource).tag as MediaItem).toList();
+    try {
+      await initialized;
+      _isStopped = false;
 
-    // Player'a bağlı OLMAYAN yeni bir source oluştur.
-    // Doldururken player hiçbir event almaz → flaş yok, yanlış parça yok.
-    final newSource = ConcatenatingAudioSource(
-      useLazyPreparation: true,
-      children: [],
-    );
+      LogService().info(
+          "Playlist yükleniyor — ${sources.length} parça, başlangıç: $safeIndex",
+          tag: "Audio");
 
-    const int chunkSize = 50;
-    for (int i = 0; i < sources.length; i += chunkSize) {
-      final end = (i + chunkSize).clamp(0, sources.length);
-      await newSource.addAll(sources.sublist(i, end));
-      if (end < sources.length) {
-        await Future.delayed(const Duration(milliseconds: 20));
+      final mediaItems =
+          sources.map((s) => (s as UriAudioSource).tag as MediaItem).toList();
+
+      final newSource = ConcatenatingAudioSource(
+        useLazyPreparation: true,
+        children: [],
+      );
+
+      const int chunkSize = 50;
+      for (int i = 0; i < sources.length; i += chunkSize) {
+        final end = (i + chunkSize).clamp(0, sources.length);
+        await newSource.addAll(sources.sublist(i, end));
+        if (end < sources.length) {
+          await Future.delayed(const Duration(milliseconds: 20));
+        }
+      }
+
+      _concatenatingSource = newSource;
+      queue.add(mediaItems);
+
+      await _player.setAudioSource(
+        _concatenatingSource,
+        initialIndex: safeIndex,
+      );
+    } finally {
+      // YENİ: Hata olsa bile yüklemenin BİTTİĞİNİ bildir.
+      AudioService.playlistLoadingNotifier.value = false;
+      // Yükleme boyunca bastırılan index güncellemesini şimdi zorla uygula
+      final resolvedIndex = _player.currentIndex ?? safeIndex;
+      if (queue.value.isNotEmpty && resolvedIndex < queue.value.length) {
+        mediaItem.add(queue.value[resolvedIndex]);
+        AudioService.setCurrentTrack(resolvedIndex);
       }
     }
-
-    // Liste tamamen hazır, şimdi player'a bağla
-    _concatenatingSource = newSource;
-    queue.add(mediaItems);
-
-    await _player.setAudioSource(
-      _concatenatingSource,
-      initialIndex: safeIndex,
-    );
   }
 
-  /// Listeye parça ekler — player'ı RESETLEMEZ, oynatma durmaz
   Future<void> appendTrack(AudioSource source) async {
     await _concatenatingSource.add(source);
     final item = (source as UriAudioSource).tag as MediaItem;
@@ -525,7 +528,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     queue.add(updated);
   }
 
-  /// Belirli bir indexe parça ekler — player'ı RESETLEMEZ
   Future<void> insertTrackAt(int index, AudioSource source) async {
     final safe = index.clamp(0, _concatenatingSource.length);
     await _concatenatingSource.insert(safe, source);
@@ -538,7 +540,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   AudioPlayer get player => _player;
 
-  /// Kaynakları tamamen serbest bırakır
   Future<void> disposePlayer() async {
     _persistenceTimer?.cancel();
     _finalizeLogForCurrentTrack();
@@ -548,17 +549,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
 // ══════════════════════════════════════════════════════════════
 //  AudioService — Singleton Yönetici
-//  - Çift başlatma koruması
-//  - Immutable liste getter'ları (dışarıdan değiştirilemez)
-//  - _ensureInitialized() tüm public metodlarda kontrol sağlar
-//  - _buildAudioSource() tekrar eden header bloklarını ortadan kaldırır
 // ══════════════════════════════════════════════════════════════
 class AudioService {
-  AudioService._(); // Dışarıdan new AudioService() yapılamaz
+  AudioService._();
 
   static MyAudioHandler? _audioHandler;
 
-  // ── Parça Bilgileri (private + getter) ─────────────────────
   static String _parcaAdi = '...';
   static String _seslendiren = '...';
   static List<MediaItem> _parcaListesi = [];
@@ -567,7 +563,6 @@ class AudioService {
   static String get parcaAdi => _parcaAdi;
   static String get seslendiren => _seslendiren;
 
-  /// Dışarıdan sadece okunabilir kopya döner — orijinal liste korunur
   static List<MediaItem> get parcaListesi => List.unmodifiable(_parcaListesi);
   static List<AudioSource> get parcaKaynaklari =>
       List.unmodifiable(_parcaKaynaklari);
@@ -577,6 +572,10 @@ class AudioService {
   static final currentSongTitleNotifier = ValueNotifier<String>('...');
   static final currentSongSubTitleNotifier = ValueNotifier<String>('...');
   static final playlistNotifier = ValueNotifier<List<String>>([]);
+
+  // YENİ: Liste yükleme durumunu bildiren notifier.
+  static final playlistLoadingNotifier = PlaylistLoadingNotifier();
+
   static final repeatButtonNotifier = RepeatButtonNotifier();
   static final isFirstSongNotifier = ValueNotifier<bool>(true);
   static final playButtonNotifier =
@@ -623,7 +622,7 @@ class AudioService {
 
   // ── Ses Seviyesi ────────────────────────────────────────────
   static Future<void> saveVolume(double volume) async {
-    if (volume <= 0) return; // Mute konumu başlangıç ayarı olarak kaydedilmez
+    if (volume <= 0) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('app_volume', volume);
   }
@@ -645,11 +644,11 @@ class AudioService {
   }
 
   // ════════════════════════════════════════════════════════════
-  //  BAŞLATMA — Çift init korumalı
+  //  BAŞLATMA
   // ════════════════════════════════════════════════════════════
 
   static Future<void> init() async {
-    if (_audioHandler != null) return; // Çift başlatmayı önle
+    if (_audioHandler != null) return;
 
     _audioHandler = MyAudioHandler();
 
@@ -681,14 +680,12 @@ class AudioService {
 
     final bool hediyeVarmi = Degiskenler.bekleyenHediyeId != null;
 
-    // hediyeListede: hediye ID listede VAR MI? (-1 = yok)
     final int hediyeListeIndex = hediyeVarmi
         ? playlist.indexWhere((s) =>
             ((s as UriAudioSource).tag as MediaItem).id ==
             Degiskenler.bekleyenHediyeId.toString())
         : -1;
 
-    // initialIndex: hediye listede varsa orası, yoksa rastgele
     final int initialIndex = hediyeListeIndex != -1
         ? hediyeListeIndex
         : Random().nextInt(playlist.length);
@@ -702,9 +699,10 @@ class AudioService {
       return;
     }
 
-    // Hediye listede YOKSA → arka planda çek, sessizce başlat
     final bool hediyeListeYok = hediyeVarmi && hediyeListeIndex == -1;
-    LogService().info("setPlaylist: hediyeVarmi=$hediyeVarmi, hediyeListeIndex=$hediyeListeIndex, hediyeListeYok=$hediyeListeYok", tag: "Audio-ColdStart");
+    LogService().info(
+        "setPlaylist: hediyeVarmi=$hediyeVarmi, hediyeListeIndex=$hediyeListeIndex, hediyeListeYok=$hediyeListeYok",
+        tag: "Audio-ColdStart");
     double restoreVol = -1.0;
 
     if (playNow) {
@@ -730,13 +728,13 @@ class AudioService {
     Degiskenler.listeYuklendi = true;
   }
 
-  /// Hediye parçayı arka planda çeker — setPlaylist'i bloke etmez
   static Future<void> _fetchGiftTrackInBackground(
     String link,
     dynamic id,
     double restoreVolume,
   ) async {
-    LogService().info("_fetchGiftTrackInBackground başladı: link=$link, id=$id", tag: "Audio-ColdStart");
+    LogService().info("_fetchGiftTrackInBackground başladı: link=$link, id=$id",
+        tag: "Audio-ColdStart");
     Degiskenler.hazirlaniyor = true;
     try {
       final response = await MusicApiService().fetchAtesiAskLink(link, id);
@@ -752,55 +750,52 @@ class AudioService {
         );
         final giftSource = _buildAudioSource(item['url'], giftItem);
 
-        // ConcatenatingAudioSource.insert → player resetlenmez
         await _audioHandler!.insertTrackAt(0, giftSource);
         _parcaKaynaklari.insert(0, giftSource);
         _parcaListesi.insert(0, giftItem);
 
         isShareableNotifier.value = false;
 
-        // ── YENİ: insert sonrası player'ın idle'a düşmesini bekle,
-        //          sonra seek yap → daha güvenilir state geçişi ──
         await Future.delayed(const Duration(milliseconds: 300));
-        LogService().info("gift item eklendi, skipToQueueItem(0) yapılıyor", tag: "Audio-ColdStart");
+        LogService().info("gift item eklendi, skipToQueueItem(0) yapılıyor",
+            tag: "Audio-ColdStart");
         await _audioHandler!.skipToQueueItem(0);
 
-        // ── insert + seek sonrası player idle'a düşer, bunu geç ──
-        // processingState önce idle olabilir, hemen stream'e atlamak
-        // 'buffering' eventini kaçırır — polling daha güvenli
-        LogService().info("_waitForReadyThenPlay çağrılıyor", tag: "Audio-ColdStart");
+        LogService()
+            .info("_waitForReadyThenPlay çağrılıyor", tag: "Audio-ColdStart");
         await _waitForReadyThenPlay();
       }
     } catch (e) {
-      LogService().error("Hediye parça arka plan hatası: $e", tag: "Audio-ColdStart");
+      LogService()
+          .error("Hediye parça arka plan hatası: $e", tag: "Audio-ColdStart");
     } finally {
       Degiskenler.hazirlaniyor = false;
       Degiskenler.bekleyenHediyeId = null;
       Degiskenler.bekleyenHediyeLink = null;
-      // ── Volume restore: play() gerçekten başladıktan sonra ──
       if (restoreVolume != -1.0) {
-        // playing olana kadar bekle (max 3s)
         int waited = 0;
-        LogService().info("Ses restore edilecek, player'ın başlaması bekleniyor...", tag: "Audio-ColdStart");
+        LogService().info(
+            "Ses restore edilecek, player'ın başlaması bekleniyor...",
+            tag: "Audio-ColdStart");
         while (!(_audioHandler?.player.playing ?? false) && waited < 3000) {
           await Future.delayed(const Duration(milliseconds: 100));
           waited += 100;
         }
-        LogService().info("Ses restore edildi: $restoreVolume (beklenen süre: ${waited}ms)", tag: "Audio-ColdStart");
+        LogService().info(
+            "Ses restore edildi: $restoreVolume (beklenen süre: ${waited}ms)",
+            tag: "Audio-ColdStart");
         await setVolume(restoreVolume);
       }
     }
   }
 
-  /// Soğuk başlangıçta stream race condition'ını tamamen önler.
-  /// Polling + exponential backoff ile hem state hem de gerçek ses çıkışını garantiler.
   static Future<void> _waitForReadyThenPlay() async {
-    // ── Explicit play niyeti → manual pause flag'ini sıfırla ──
     _audioHandler!._manualPauseRequested = false;
     final player = _audioHandler!.player;
-    LogService().info("_waitForReadyThenPlay: polling başladı. Mevcut state=${player.processingState}", tag: "Audio-ColdStart");
+    LogService().info(
+        "_waitForReadyThenPlay: polling başladı. Mevcut state=${player.processingState}",
+        tag: "Audio-ColdStart");
 
-    // ── 1. Adım: player'ın oynatılabilir state'e gelmesini bekle ──
     const maxWait = Duration(seconds: 20);
     const pollInterval = Duration(milliseconds: 200);
     final deadline = DateTime.now().add(maxWait);
@@ -808,11 +803,12 @@ class AudioService {
     while (DateTime.now().isBefore(deadline)) {
       final s = player.processingState;
       if (s == ProcessingState.ready || s == ProcessingState.buffering) {
-        LogService().info("_waitForReadyThenPlay: hedef state'e ulaşıldı ($s)", tag: "Audio-ColdStart");
+        LogService().info("_waitForReadyThenPlay: hedef state'e ulaşıldı ($s)",
+            tag: "Audio-ColdStart");
         break;
       }
       if (s == ProcessingState.completed || s == ProcessingState.idle) {
-        // Parça henüz yüklenmedi, bekle
+        // bekle
       }
       await Future.delayed(pollInterval);
     }
@@ -830,20 +826,20 @@ class AudioService {
       return;
     }
 
-    // ── 2. Adım: Audio session'ı tekrar aktif et (soğuk başlangıç güvencesi) ──
     try {
       final session = await AudioSession.instance;
       await session.setActive(true);
-      LogService().info("Audio session tekrar aktif edildi", tag: "Audio-ColdStart");
+      LogService()
+          .info("Audio session tekrar aktif edildi", tag: "Audio-ColdStart");
     } catch (e) {
-      LogService().warn("Session reactivation hatası: $e", tag: "Audio-ColdStart");
+      LogService()
+          .warn("Session reactivation hatası: $e", tag: "Audio-ColdStart");
     }
 
-    // ── 3. Adım: play() çağır + gerçekten başladığını doğrula ──
-    LogService().info("_waitForReadyThenPlay: play() çağrılıyor", tag: "Audio-ColdStart");
+    LogService().info("_waitForReadyThenPlay: play() çağrılıyor",
+        tag: "Audio-ColdStart");
     await play();
 
-    // Kısa süre bekleyip playing kontrolü yap — başlamadıysa retry
     await Future.delayed(const Duration(milliseconds: 500));
     if (_audioHandler!._manualPauseRequested) {
       LogService().warn(
@@ -854,7 +850,9 @@ class AudioService {
     }
 
     if (!player.playing) {
-      LogService().warn("play() etkisiz — retry yapılıyor. state=${player.processingState}", tag: "Audio-ColdStart");
+      LogService().warn(
+          "play() etkisiz — retry yapılıyor. state=${player.processingState}",
+          tag: "Audio-ColdStart");
       await Future.delayed(const Duration(milliseconds: 300));
       if (!_audioHandler!._manualPauseRequested) {
         await play();
@@ -865,7 +863,8 @@ class AudioService {
         );
       }
     } else {
-      LogService().info("play() başarılı oldu, playing=true", tag: "Audio-ColdStart");
+      LogService()
+          .info("play() başarılı oldu, playing=true", tag: "Audio-ColdStart");
     }
   }
 
@@ -877,8 +876,6 @@ class AudioService {
     await _audioHandler!.initialized;
     if (songList.isEmpty) return;
 
-    // ── Akıllı Liste Karşılaştırması ──────────────────────────
-    // Uzunluk + ilk 5 ID kontrolü (tek eleman karşılaştırmasından çok daha güvenilir)
     if (_isSameList(songList)) {
       LogService().info(
           "Liste zaten yüklü, kuyruk yenilenmeden ID'ye atlıyoruz: $startId",
@@ -886,7 +883,6 @@ class AudioService {
       await playAtId(startId);
       return;
     }
-    // ────────────────────────────────────────────────────────
 
     final sources = <AudioSource>[];
     final mediaItems = <MediaItem>[];
@@ -903,7 +899,6 @@ class AudioService {
       sources.add(_buildAudioSource(song['url'] ?? '', item));
     }
 
-    // initialIndex'i kendi oluşturduğumuz listeden hesapla
     final startIndex = sources.indexWhere((s) =>
         ((s as UriAudioSource).tag as MediaItem).id == startId.toString());
 
@@ -914,28 +909,23 @@ class AudioService {
     _parcaListesi = mediaItems;
     _parcaKaynaklari = List.from(sources);
 
-    //await _audioHandler!.player.setShuffleModeEnabled(false);
     await _audioHandler!.loadPlaylist(
       sources,
       initialIndex: startIndex == -1 ? 0 : startIndex,
     );
 
     await play();
-    //await _audioHandler!.player.setShuffleModeEnabled(true);
   }
 
-  /// Uzunluk + ilk 5 ID'yi karşılaştırır
-  /// → Tek eleman kontrolünden çok daha az yanlış eşleşme üretir
   static bool _isSameList(List<dynamic> newList) {
-    final seq = _audioHandler?.player.sequence;
-    if (seq == null || seq.length != newList.length) return false;
-
+    if (_parcaListesi.isEmpty || _parcaListesi.length != newList.length) {
+      return false;
+    }
     final checkCount = min(5, newList.length);
     for (int i = 0; i < checkCount; i++) {
-      final newId = newList[i]['sira_no'].toString();
-      final src = seq[i];
-      if (src is! UriAudioSource) return false;
-      if ((src.tag as MediaItem).id != newId) return false;
+      if (_parcaListesi[i].id != newList[i]['sira_no'].toString()) {
+        return false;
+      }
     }
     return true;
   }
@@ -956,7 +946,6 @@ class AudioService {
     }
   }
 
-  /// Listeye parça ekler — player RESETLENMEZ, oynatma DURMAZ
   static Future<void> addTrackToPlaylist(
     String adi,
     String ses,
@@ -986,7 +975,6 @@ class AudioService {
     final source = _buildAudioSource(yol, item);
 
     try {
-      // ConcatenatingAudioSource.add() — player resetlenmez!
       await _audioHandler!.appendTrack(source);
       _parcaKaynaklari.add(source);
       _parcaListesi.add(item);
@@ -1013,32 +1001,30 @@ class AudioService {
     isShareableNotifier.value = item.extras?['isApplink'] != true;
   }
 
-  // ── Uygulama açıkken gelen hediye link yönetimi ────────────
   static Future<void> playGiftTrack(String link, String id) async {
     _ensureInitialized();
     await _audioHandler!.initialized;
-    LogService().info("playGiftTrack çağrıldı: link=$link, id=$id", tag: "Audio");
+    LogService()
+        .info("playGiftTrack çağrıldı: link=$link, id=$id", tag: "Audio");
 
-    // Zaten o parça mı çalıyor?
     if (Degiskenler.parcaIndex.toString() == id) {
       await _waitForReadyThenPlay();
       return;
     }
 
-    // Kuyrukta var mı?
     final seq = _audioHandler!.player.sequence;
     if (seq != null) {
       final index = seq.indexWhere(
           (s) => s is UriAudioSource && (s.tag as MediaItem).id == id);
       if (index != -1) {
-        LogService().info("playGiftTrack: parça kuyrukta bulundu, index=$index", tag: "Audio");
+        LogService().info("playGiftTrack: parça kuyrukta bulundu, index=$index",
+            tag: "Audio");
         await _audioHandler!.skipToQueueItem(index);
         await _waitForReadyThenPlay();
         return;
       }
     }
 
-    // Kuyrukta yoksa sunucudan çek
     Degiskenler.hazirlaniyor = true;
     try {
       final response = await MusicApiService().fetchAtesiAskLink(link, id);
@@ -1047,7 +1033,8 @@ class AudioService {
         await playApplinkTrack(
             item['parca_adi'], item['seslendiren'], item['url'], id);
       } else {
-        LogService().warn("playGiftTrack: response eksik veya boş", tag: "Audio");
+        LogService()
+            .warn("playGiftTrack: response eksik veya boş", tag: "Audio");
       }
     } catch (e, st) {
       LogService().error("playGiftTrack hatası: $e", tag: "Audio");
@@ -1129,10 +1116,9 @@ class AudioService {
 
   static Future<void> stop() async => _audioHandler!.stop();
 
-  /// Tüm kaynakları güvenle serbest bırakır
   static Future<void> dispose() async {
     cancelSleepTimer();
-    await _audioHandler?.disposePlayer(); // _player.dispose() burada çağrılır
+    await _audioHandler?.disposePlayer();
     await _audioHandler?.stop();
     _audioHandler = null;
   }
@@ -1158,17 +1144,15 @@ class AudioService {
   static String getCurrentTrackArtist() => _seslendiren;
 
   // ════════════════════════════════════════════════════════════
-  //  YARDIMCI — Yalnızca bu dosyada kullanılır
+  //  YARDIMCI
   // ════════════════════════════════════════════════════════════
 
   static void _ensureInitialized() {
     if (_audioHandler == null) {
-      throw StateError('AudioService.init() çağrılmadan kullanılamaz. '
-          'main() içinde await AudioService.init() çağrısını kontrol edin.');
+      throw StateError('AudioService.init() çağrılmadan kullanılamaz. ');
     }
   }
 
-  /// Tekrar eden HTTP header bloğunu tek noktada toplar
   static AudioSource _buildAudioSource(String url, MediaItem tag) {
     return AudioSource.uri(
       Uri.parse(url),
