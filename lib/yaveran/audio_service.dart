@@ -371,8 +371,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     await initialized;
     _manualPauseRequested = false;
     
-    if (!Degiskenler.listeYuklendi && !Degiskenler.hazirlaniyor) {
-      LogService().info("Oynat tuşuna basıldı ancak liste yüklü değil, sistem yenileniyor...", tag: "Audio");
+    if (!Degiskenler.listeYuklendi &&
+        !Degiskenler.hazirlaniyor &&
+        !AudioService.playlistLoadingNotifier.value) {
+      LogService().info(
+          "Oynat tuşuna basıldı ancak liste yüklü değil, sistem yenileniyor...",
+          tag: "Audio");
       Degiskenler.showSplashNotifier.value = true;
       return;
     }
@@ -438,7 +442,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> skipToNext() async {
-    if (!Degiskenler.listeYuklendi && !Degiskenler.hazirlaniyor) {
+    if (!Degiskenler.listeYuklendi &&
+        !Degiskenler.hazirlaniyor &&
+        !AudioService.playlistLoadingNotifier.value) {
       Degiskenler.showSplashNotifier.value = true;
       return;
     }
@@ -448,7 +454,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> skipToPrevious() async {
-    if (!Degiskenler.listeYuklendi && !Degiskenler.hazirlaniyor) {
+    if (!Degiskenler.listeYuklendi &&
+        !Degiskenler.hazirlaniyor &&
+        !AudioService.playlistLoadingNotifier.value) {
       Degiskenler.showSplashNotifier.value = true;
       return;
     }
@@ -755,6 +763,8 @@ class AudioService {
         tag: "Audio-ColdStart");
     double restoreVol = -1.0;
 
+    Degiskenler.listeYuklendi = true;
+
     if (playNow) {
       if (hediyeListeYok) {
         restoreVol = volumeNotifier.value > 0 ? volumeNotifier.value : 1.0;
@@ -774,8 +784,6 @@ class AudioService {
         restoreVol,
       );
     }
-
-    Degiskenler.listeYuklendi = true;
   }
 
   static Future<void> _fetchGiftTrackInBackground(

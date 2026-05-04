@@ -200,9 +200,12 @@ void handleLink(String? link) {
             LogService().info("Liste yüklü, doğrudan oynatılıyor", tag: "Link");
             app_audio.AudioService.playGiftTrack(linkPart, idPart);
           } else {
-            LogService().info("Liste henüz yüklenmedi, hediye sıraya alındı (bekleyenHediye)", tag: "Link");
+            LogService().info("Liste henüz yüklenmedi, hediye sıraya alındı ve sistem uyandırılıyor", tag: "Link");
             Degiskenler.bekleyenHediyeLink = linkPart;
             Degiskenler.bekleyenHediyeId = idPart;
+            
+            // Sistem durdurulmuşsa (liste yüklü değilse) tekrar uyandır
+            Degiskenler.showSplashNotifier.value = true;
           }
         } else {
           LogService().error("Hediye linki veya ID boş: linkPart='$linkPart', idPart='$idPart'", tag: "Link");
