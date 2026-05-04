@@ -49,6 +49,7 @@ class Degiskenler {
   static var ustEkranBoyutNotifier = ValueNotifier<int>(75);
   static var ustEkranIndexNotifier = ValueNotifier<int>(0);
   static var sleepTimerRemainingNotifier = ValueNotifier<int>(0);
+  static var showSplashNotifier = ValueNotifier<bool>(true);
   static final ValueNotifier<AppTheme> currentThemeNotifier =
       ValueNotifier(AppTheme.taze());
 

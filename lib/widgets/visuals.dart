@@ -280,20 +280,47 @@ class Base64ImageWidget extends StatefulWidget {
   _Base64ImageWidgetState createState() => _Base64ImageWidgetState();
 }
 
-class _Base64ImageWidgetState extends State<Base64ImageWidget> {
+class _Base64ImageWidgetState extends State<Base64ImageWidget>
+    with SingleTickerProviderStateMixin {
   Uint8List? _imageBytes;
+  Uint8List? _oldImageBytes;
   String? _currentImageUrl;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 10500),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
 
   Future<void> _downloadImage(imageUrl) async {
     final HttpService _httpService = HttpService();
     try {
       final responseBytes = await _httpService
           .fetchBytes("${Degiskenler.kaynakYolu}medya/atesiask/$imageUrl");
+
       if (mounted) {
         setState(() {
+          _oldImageBytes = _imageBytes;
           _imageBytes = responseBytes;
           _currentImageUrl = imageUrl;
         });
+        _fadeController.forward(from: 0.0);
       }
     } catch (e) {
       print('Resim indirme hatası: $e');
@@ -302,9 +329,11 @@ class _Base64ImageWidgetState extends State<Base64ImageWidget> {
             "https://raw.githubusercontent.com/benolanben/atesiask/main/fotograflar/$imageUrl");
         if (mounted) {
           setState(() {
+            _oldImageBytes = _imageBytes;
             _imageBytes = responseBytes;
             _currentImageUrl = imageUrl;
           });
+          _fadeController.forward(from: 0.0);
         }
       } catch (e) {
         print('Resim indirme hatası: $e');
@@ -318,24 +347,39 @@ class _Base64ImageWidgetState extends State<Base64ImageWidget> {
       valueListenable: Degiskenler.currentImageNotifier,
       builder: (context, imageUrl, child) {
         final theme = Degiskenler.currentThemeNotifier.value;
-        if (_currentImageUrl == imageUrl && _imageBytes != null) {
-          return Image.memory(
-            _imageBytes!,
-            fit: BoxFit.cover,
-          );
-        } else {
-          if (imageUrl.contains(".jpg") || imageUrl.contains(".png")) {
-            _downloadImage(imageUrl);
-            return _imageBytes != null
-                ? Image.memory(
-                    _imageBytes!,
-                    fit: BoxFit.cover,
-                  )
-                : _buildThemedLoadingPlaceholder(context, theme);
-          } else {
-            return _buildThemedLoadingPlaceholder(context, theme);
-          }
+
+        if (_currentImageUrl != imageUrl &&
+            (imageUrl.contains(".jpg") || imageUrl.contains(".png"))) {
+          _downloadImage(imageUrl);
         }
+
+        if (_imageBytes == null) {
+          return _buildThemedLoadingPlaceholder(context, theme);
+        }
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_oldImageBytes != null)
+              FadeTransition(
+                // Eski resim: 1.0 -> 0.0 (Yavaşça kaybolur)
+                opacity:
+                    _fadeAnimation.drive(Tween<double>(begin: 1.0, end: 0.0)),
+                child: Image.memory(
+                  _oldImageBytes!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            FadeTransition(
+              // Yeni resim: 0.0 -> 1.0 (Yavaşça belirir)
+              opacity: _fadeAnimation,
+              child: Image.memory(
+                _imageBytes!,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ],
+        );
       },
     );
   }

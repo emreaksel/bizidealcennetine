@@ -11,7 +11,7 @@ class UI_support {
   static const int _debounceDurationMs = 700;
   
   // Fonksiyon çağrısının debounce kontrolünü yapan statik metod
-  static bool _shouldExecute(String functionName) {
+  static bool _shouldExecute(String functionName, {int? durationMs}) {
     final now = DateTime.now();
     final lastCall = _lastCallTimes[functionName];
     
@@ -21,13 +21,14 @@ class UI_support {
     }
     
     final timeDifference = now.difference(lastCall).inMilliseconds;
+    final limit = durationMs ?? _debounceDurationMs;
     
-    if (timeDifference >= _debounceDurationMs) {
+    if (timeDifference >= limit) {
       _lastCallTimes[functionName] = now;
       return true;
     }
     
-    print("$functionName fonksiyonu ${timeDifference}ms önce çağrıldı, debounce nedeniyle atlandı");
+    print("$functionName fonksiyonu ${timeDifference}ms önce çağrıldı, debounce nedeniyle atlandı (limit: ${limit}ms)");
     return false;
   }
 
@@ -56,7 +57,8 @@ class UI_support {
   }
 
   static void changeImageAndEpigram() {
-    if (!_shouldExecute('changeImageAndEpigram')) return;
+    // 20 saniye limit uygula (20000 ms)
+    if (!_shouldExecute('changeImageAndEpigram', durationMs: 20000)) return;
     
     // Resim değiştir
     if (_degiskenler.listFotograflar.isNotEmpty) {

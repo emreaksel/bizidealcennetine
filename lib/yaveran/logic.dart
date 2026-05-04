@@ -169,40 +169,54 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
 
 void handleLink(String? link) {
   if (link != null) {
+    LogService().info("Link işleme başladı: $link", tag: "Link");
+    
     // Çift tetiklenme kontrolü (2 saniye içinde aynı link gelirse reddet)
     final now = DateTime.now();
     if (_lastHandledLink == link &&
         _lastHandleTime != null &&
         now.difference(_lastHandleTime!) < const Duration(seconds: 2)) {
-      print("Duplicate AppLink ignored: $link");
+      LogService().warn("Aynı link kısa süre içinde tekrar geldi, yoksayılıyor: $link", tag: "Link");
       return;
     }
     _lastHandledLink = link;
     _lastHandleTime = now;
 
-    link =
-        link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
-    print("replacedLink $link");
+    link = link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
+    LogService().debug("Link normalize edildi: $link", tag: "Link");
 
     if (link.contains('https://benolanben.com/dinle/')) {
+      LogService().info("Hediye (Applink) parça tespit edildi", tag: "Link");
       var hediye = link.replaceAll('https://benolanben.com/dinle/', '');
       var parts = hediye.split('&');
+      
       if (parts.length >= 2) {
         var linkPart = parts[0];
         var idPart = parts[1];
+        LogService().info("Hediye detayları: linkPart=$linkPart, idPart=$idPart", tag: "Link");
+        
         if (linkPart.isNotEmpty && idPart.isNotEmpty) {
           if (Degiskenler.listeYuklendi) {
+            LogService().info("Liste yüklü, doğrudan oynatılıyor", tag: "Link");
             app_audio.AudioService.playGiftTrack(linkPart, idPart);
           } else {
+            LogService().info("Liste henüz yüklenmedi, hediye sıraya alındı (bekleyenHediye)", tag: "Link");
             Degiskenler.bekleyenHediyeLink = linkPart;
             Degiskenler.bekleyenHediyeId = idPart;
           }
+        } else {
+          LogService().error("Hediye linki veya ID boş: linkPart='$linkPart', idPart='$idPart'", tag: "Link");
         }
+      } else {
+        LogService().error("Hediye linki ayrıştırılamadı (parts.length < 2): $link", tag: "Link");
       }
     } else {
+      LogService().info("Bildirim/Duyuru linki tespit edildi", tag: "Link");
       Degiskenler.currentNoticeNotifier.value = link;
       Degiskenler.showDialogNotifier.value = true;
     }
+  } else {
+    LogService().warn("handleLink null link ile çağrıldı", tag: "Link");
   }
 }
 

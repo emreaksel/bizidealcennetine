@@ -51,22 +51,31 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _showSplash = true;
+  @override
+  void initState() {
+    super.initState();
+    Degiskenler.showSplashNotifier.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (_showSplash) {
+    if (Degiskenler.showSplashNotifier.value) {
       return MaterialApp(
         title: 'Ateşi Aşk',
         debugShowCheckedModeBanner: false,
         home: SplashScreenWidget(
-          onComplete: () {
-            setState(() {
-              _showSplash = false;
-            });
+          onComplete: () async {
+            // Hazırlık devam etmiyorsa VE liste henüz yüklenmediyse işlemleri başlat
+            if (!Degiskenler.hazirlaniyor && !Degiskenler.listeYuklendi) {
+              await arkaplanIslemleri();
+            }
+            // İşlemler bittikten sonra splash ekranını kapat
+            Degiskenler.showSplashNotifier.value = false;
           },
-          displayDuration: Duration(seconds: 5),
-          animationDuration: Duration(milliseconds: 800),
+          displayDuration: const Duration(seconds: 5),
+          animationDuration: const Duration(milliseconds: 800),
         ),
       );
     }
