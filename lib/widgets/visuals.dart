@@ -294,7 +294,7 @@ class _Base64ImageWidgetState extends State<Base64ImageWidget>
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 10500),
+      duration: const Duration(milliseconds: 13500),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,

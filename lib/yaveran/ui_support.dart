@@ -3,41 +3,43 @@ import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
 
 class UI_support {
   static final Degiskenler _degiskenler = Degiskenler();
-  
+
   // Son çağrılma zamanlarını tutan statik map
   static final Map<String, DateTime> _lastCallTimes = {};
-  
+
   // Debounce süresi (milisaniye)
   static const int _debounceDurationMs = 700;
-  
+
   // Fonksiyon çağrısının debounce kontrolünü yapan statik metod
   static bool _shouldExecute(String functionName, {int? durationMs}) {
     final now = DateTime.now();
     final lastCall = _lastCallTimes[functionName];
-    
+
     if (lastCall == null) {
       _lastCallTimes[functionName] = now;
       return true;
     }
-    
+
     final timeDifference = now.difference(lastCall).inMilliseconds;
     final limit = durationMs ?? _debounceDurationMs;
-    
+
     if (timeDifference >= limit) {
       _lastCallTimes[functionName] = now;
       return true;
     }
-    
-    print("$functionName fonksiyonu ${timeDifference}ms önce çağrıldı, debounce nedeniyle atlandı (limit: ${limit}ms)");
+
+    print(
+        "$functionName fonksiyonu ${timeDifference}ms önce çağrıldı, debounce nedeniyle atlandı (limit: ${limit}ms)");
     return false;
   }
 
   static void changeImage() {
     if (!_shouldExecute('changeImage')) return;
-    
+
     if (_degiskenler.listFotograflar.isNotEmpty) {
       final Random random = Random();
-      final int randomIndex = random.nextInt(_degiskenler.listFotograflar.length);
+      final int randomIndex =
+          random.nextInt(_degiskenler.listFotograflar.length);
       final String secilen = _degiskenler.listFotograflar[randomIndex]['path'];
       Degiskenler.currentImageNotifier.value = secilen;
       print("Rastgele Seçilen fotograf: $secilen");
@@ -46,7 +48,7 @@ class UI_support {
 
   static void changeEpigram() {
     if (!_shouldExecute('changeEpigram')) return;
-    
+
     if (_degiskenler.listSozler.isNotEmpty) {
       final Random random = Random();
       final int randomIndex = random.nextInt(_degiskenler.listSozler.length);
@@ -58,12 +60,13 @@ class UI_support {
 
   static void changeImageAndEpigram() {
     // 20 saniye limit uygula (20000 ms)
-    if (!_shouldExecute('changeImageAndEpigram', durationMs: 20000)) return;
-    
+    if (!_shouldExecute('changeImageAndEpigram', durationMs: 16000)) return;
+
     // Resim değiştir
     if (_degiskenler.listFotograflar.isNotEmpty) {
       final Random random = Random();
-      final int randomIndex = random.nextInt(_degiskenler.listFotograflar.length);
+      final int randomIndex =
+          random.nextInt(_degiskenler.listFotograflar.length);
       final String secilen = _degiskenler.listFotograflar[randomIndex]['path'];
       Degiskenler.currentImageNotifier.value = secilen;
       print("Rastgele Seçilen fotograf: $secilen");
@@ -78,7 +81,7 @@ class UI_support {
       print("Rastgele Seçilen Söz: $secilenSoz");
     }
   }
-  
+
   static void ekranboyut_minik(int goster) {
     Degiskenler.ustEkranIndexNotifier.value = goster;
     Degiskenler.altEkranBoyutNotifier.value = 17;
@@ -90,7 +93,7 @@ class UI_support {
     Degiskenler.altEkranBoyutNotifier.value = 20;
     Degiskenler.ustEkranBoyutNotifier.value = 80;
   }
-  
+
   // Debug için - son çağrılma zamanlarını görmek istersen
   static void printLastCallTimes() {
     print("Son çağrılma zamanları:");
@@ -98,13 +101,13 @@ class UI_support {
       print("$functionName: $time");
     });
   }
-  
+
   // Belirli bir fonksiyonun son çağrılma zamanını sıfırlamak için
   static void resetFunctionTimer(String functionName) {
     _lastCallTimes.remove(functionName);
     print("$functionName için timer sıfırlandı");
   }
-  
+
   // Tüm timerleri sıfırlamak için
   static void resetAllTimers() {
     _lastCallTimes.clear();

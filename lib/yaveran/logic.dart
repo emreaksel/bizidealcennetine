@@ -36,7 +36,7 @@ Future<void> arkaplanIslemleri() async {
     final combinedData = await MusicApiService().fetchAtesiAskSub();
     if (combinedData.containsKey("isaretler")) {
       final isaretler = combinedData["isaretler"];
-      
+
       // 1. Menba İşlemleri
       if (isaretler.containsKey("menba")) {
         processMenbaData(isaretler["menba"]);
@@ -107,39 +107,61 @@ void processSozlerData(List<dynamic> sozlerListesi) {
 Future<void> setPlaylist(data, {bool playNow = true}) async {
   print("setPlaylist called with ${data.length} items");
 
-  List<dynamic> reversedData = data.reversed.toList();
-
-
+  // Veri dönüşümünü (tersine çevirme + filtreleme) izolatta yap — main thread serbest kalır
+  final List<dynamic> reversedData =
+      await compute(_preparePlaylistData, List<dynamic>.from(data));
 
   final degiskenler = Degiskenler();
   degiskenler.listDinle = reversedData;
   Degiskenler.songListNotifier.value = reversedData;
 
-  List<AudioSource> playlist = [];
-  for (var item in reversedData) {
-    final String? url = item['url'];
-    if (url == null || url.isEmpty) continue;
+  // AudioSource nesnelerini chunk'lar hâlinde oluştur.
+  // Her chunk arasında event loop'a nefes aldır — büyük listelerde
+  // tek seferlik senkron döngü iOS'ta 3-5 sn ekran donmasına yol açıyordu.
+  const int chunkSize = 40;
+  final List<AudioSource> playlist = [];
 
-    playlist.add(
-      AudioSource.uri(
-        Uri.parse(url),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
-          'Accept': '*/*',
-          'Connection': 'keep-alive',
-        },
-        tag: MediaItem(
+  for (int i = 0; i < reversedData.length; i += chunkSize) {
+    final int end = (i + chunkSize).clamp(0, reversedData.length);
+    for (int j = i; j < end; j++) {
+      final item = reversedData[j];
+      final String? url = item['url'];
+      if (url == null || url.isEmpty) continue;
+      playlist.add(
+        AudioSource.uri(
+          Uri.parse(url),
+          headers: const {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+            'Accept': '*/*',
+            'Connection': 'keep-alive',
+          },
+          tag: MediaItem(
             id: '${item['sira_no']}',
             album: item['parca_adi'] ?? '...',
             title: item['parca_adi'] ?? '...',
-            artist: item['seslendiren'] ?? '...'),
-      ),
-    );
+            artist: item['seslendiren'] ?? '...',
+          ),
+        ),
+      );
+    }
+    // Chunk arası: UI frame'inin render edilmesine izin ver
+    if (end < reversedData.length) {
+      await Future.delayed(Duration.zero);
+    }
   }
 
   await app_audio.AudioService.setPlaylist(playlist, playNow: playNow);
 
   print("Playlist set successfully");
+}
+
+/// Compute izolat'ında çalışır — tersine çevirir ve URL'siz öğeleri filtreler.
+/// Top-level (veya static) olmak zorunda.
+List<dynamic> _preparePlaylistData(List<dynamic> data) {
+  return data.reversed.where((item) {
+    final url = item['url'];
+    return url != null && (url as String).isNotEmpty;
+  }).toList();
 }
 
 Future<void> initUniLinks(Function(String) handleLinkCallback) async {
@@ -150,7 +172,8 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
     }
 
     final initialLink = await appLinks.getInitialLink();
-    LogService().info("Açılış linki kontrol ediliyor: $initialLink", tag: "Link");
+    LogService()
+        .info("Açılış linki kontrol ediliyor: $initialLink", tag: "Link");
 
     if (initialLink != null) {
       handleLinkCallback(initialLink.toString());
@@ -170,48 +193,59 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
 void handleLink(String? link) {
   if (link != null) {
     LogService().info("Link işleme başladı: $link", tag: "Link");
-    
+
     // Çift tetiklenme kontrolü (2 saniye içinde aynı link gelirse reddet)
     final now = DateTime.now();
     if (_lastHandledLink == link &&
         _lastHandleTime != null &&
         now.difference(_lastHandleTime!) < const Duration(seconds: 2)) {
-      LogService().warn("Aynı link kısa süre içinde tekrar geldi, yoksayılıyor: $link", tag: "Link");
+      LogService().warn(
+          "Aynı link kısa süre içinde tekrar geldi, yoksayılıyor: $link",
+          tag: "Link");
       return;
     }
     _lastHandledLink = link;
     _lastHandleTime = now;
 
-    link = link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
+    link =
+        link.toString().replaceAll(RegExp(r"\s+"), "").replaceAll("&amp;", "&");
     LogService().debug("Link normalize edildi: $link", tag: "Link");
 
     if (link.contains('https://benolanben.com/dinle/')) {
       LogService().info("Hediye (Applink) parça tespit edildi", tag: "Link");
       var hediye = link.replaceAll('https://benolanben.com/dinle/', '');
       var parts = hediye.split('&');
-      
+
       if (parts.length >= 2) {
         var linkPart = parts[0];
         var idPart = parts[1];
-        LogService().info("Hediye detayları: linkPart=$linkPart, idPart=$idPart", tag: "Link");
-        
+        LogService().info(
+            "Hediye detayları: linkPart=$linkPart, idPart=$idPart",
+            tag: "Link");
+
         if (linkPart.isNotEmpty && idPart.isNotEmpty) {
           if (Degiskenler.listeYuklendi) {
             LogService().info("Liste yüklü, doğrudan oynatılıyor", tag: "Link");
             app_audio.AudioService.playGiftTrack(linkPart, idPart);
           } else {
-            LogService().info("Liste henüz yüklenmedi, hediye sıraya alındı ve sistem uyandırılıyor", tag: "Link");
+            LogService().info(
+                "Liste henüz yüklenmedi, hediye sıraya alındı ve sistem uyandırılıyor",
+                tag: "Link");
             Degiskenler.bekleyenHediyeLink = linkPart;
             Degiskenler.bekleyenHediyeId = idPart;
-            
+
             // Sistem durdurulmuşsa (liste yüklü değilse) tekrar uyandır
             Degiskenler.showSplashNotifier.value = true;
           }
         } else {
-          LogService().error("Hediye linki veya ID boş: linkPart='$linkPart', idPart='$idPart'", tag: "Link");
+          LogService().error(
+              "Hediye linki veya ID boş: linkPart='$linkPart', idPart='$idPart'",
+              tag: "Link");
         }
       } else {
-        LogService().error("Hediye linki ayrıştırılamadı (parts.length < 2): $link", tag: "Link");
+        LogService().error(
+            "Hediye linki ayrıştırılamadı (parts.length < 2): $link",
+            tag: "Link");
       }
     } else {
       LogService().info("Bildirim/Duyuru linki tespit edildi", tag: "Link");
@@ -366,4 +400,3 @@ void bildirimKontrol(bildirim) async {
     }
   }
 }
-
