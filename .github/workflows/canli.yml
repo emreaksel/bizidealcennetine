@@ -1,0 +1,314 @@
+# ============================================================
+# App Store — Doğrudan Dağıtım (Review'a Otomatik Gönder)
+# ============================================================
+name: "App Store Release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      flutter_version:
+        description: "Flutter sürümü (boş = son stable)"
+        required: false
+        default: ""
+      submit_for_review:
+        description: "Review'a otomatik gönder? (true/false)"
+        required: false
+        default: "true"
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: "Repoyu Klonla"
+        uses: actions/checkout@v4
+
+      - name: "Xcode Sürümünü Ayarla"
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      # ----------------------------------------------------------
+      # 1. Sertifika
+      # ----------------------------------------------------------
+      - name: "Sertifika ve Keychain Hazırla"
+        env:
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security create-keychain -p "temp_pass" build.keychain
+          security list-keychains -s build.keychain login.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "temp_pass" build.keychain
+          security set-keychain-settings -t 3600 -l build.keychain
+          security import certificate.p12 \
+            -k build.keychain \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/xcodebuild \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "temp_pass" build.keychain
+          echo "=== Yüklü sertifikalar ==="
+          security find-identity -v -p codesigning build.keychain
+          echo "✅ Sertifika hazır."
+
+      # ----------------------------------------------------------
+      # 2. Provisioning Profile
+      # ----------------------------------------------------------
+      - name: "Provisioning Profile Yerleştir"
+        env:
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/flutter_01.mobileprovision
+          echo "✅ Provisioning Profile hazır."
+
+      # ----------------------------------------------------------
+      # 3. App Store Connect API Key
+      # ----------------------------------------------------------
+      - name: "App Store Connect API Key Hazırla"
+        env:
+          ASC_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_API_KEY" | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "✅ API Key hazır."
+
+      # ----------------------------------------------------------
+      # 4. Flutter
+      # ----------------------------------------------------------
+      - name: "Flutter Kur"
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ github.event.inputs.flutter_version }}
+          channel: 'stable'
+          cache: true
+
+      - name: "Bağımlılıkları Yükle"
+        run: |
+          flutter pub get
+          cd ios && pod install --repo-update && cd ..
+          echo "✅ Bağımlılıklar hazır."
+
+      # ----------------------------------------------------------
+      # 5. Xcode İmzalama Ayarları
+      # ----------------------------------------------------------
+      - name: "Xcode İmzalama Ayarlarını Zorla"
+        run: |
+          PROJ="ios/Runner.xcodeproj/project.pbxproj"
+          sed -i '' "s|/Users/mixerdating/flutter|$FLUTTER_ROOT|g" "$PROJ"
+          sed -i '' '/PROVISIONING_PROFILE[^_]/d' "$PROJ"
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' "$PROJ"
+          sed -i '' '/CODE_SIGN_IDENTITY/d' "$PROJ"
+          sed -i '' '/CODE_SIGN_STYLE/d' "$PROJ"
+          sed -i '' '/ProvisioningStyle/d' "$PROJ"
+          sed -i '' 's/SDKROOT = iphoneos;/SDKROOT = iphoneos;\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";\n\t\t\t\tCODE_SIGN_STYLE = Manual;\n\t\t\t\tDEVELOPMENT_TEAM = 76J8JGV82N;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ"
+          echo "✅ İmzalama ayarları tamamlandı."
+
+      # ----------------------------------------------------------
+      # 6. IPA Build
+      # ----------------------------------------------------------
+      - name: "IPA Build Al"
+        run: |
+          echo "🔨 Build başlıyor..."
+          flutter build ipa --release \
+            --no-codesign \
+            --build-number=$GITHUB_RUN_NUMBER \
+            || true
+
+          echo "📦 xcodebuild ile archive + export..."
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/Runner.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="flutter_01" \
+            DEVELOPMENT_TEAM=76J8JGV82N \
+            | xcpretty
+
+          xcodebuild -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -exportPath build/ios/ipa \
+            | xcpretty
+
+          echo "✅ IPA hazır:"
+          ls -lh build/ios/ipa/*.ipa
+
+      # ----------------------------------------------------------
+      # 7. App Store Connect'e Yükle
+      # ----------------------------------------------------------
+      - name: "App Store Connect'e Yükle"
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -1)
+          echo "📤 Yükleniyor: $IPA_PATH"
+
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
+            --verbose
+
+          echo "✅ App Store Connect'e yükleme tamamlandı."
+
+      # ----------------------------------------------------------
+      # 8. Build'in İşlenmesini Bekle + Review'a Gönder
+      # ----------------------------------------------------------
+      - name: "Review'a Otomatik Gönder"
+        if: ${{ github.event.inputs.submit_for_review == 'true' }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+        run: |
+          set -e
+
+          # pubspec.yaml'dan versiyon oku (örn: "1.2.3+45" → "1.2.3")
+          APP_VERSION=$(grep "^version:" pubspec.yaml | cut -d' ' -f2 | cut -d'+' -f1)
+          echo "📦 Versiyon : $APP_VERSION"
+          echo "📦 Bundle ID: $APP_BUNDLE_ID"
+
+          pip3 install PyJWT cryptography --quiet
+
+          # --- JWT üret ---
+          python3 << 'PYEOF'
+          import jwt, time, os, base64, pathlib
+
+          key_b64 = os.environ["ASC_PRIVATE_KEY"]
+          key_id  = os.environ["ASC_KEY_ID"]
+          issuer  = os.environ["ASC_ISSUER_ID"]
+
+          key_bytes = base64.b64decode(key_b64)
+          payload = {
+              "iss": issuer,
+              "iat": int(time.time()),
+              "exp": int(time.time()) + 1200,
+              "aud": "appstoreconnect-v1"
+          }
+          token = jwt.encode(payload, key_bytes, algorithm="ES256",
+                             headers={"kid": key_id})
+          pathlib.Path("/tmp/asc_token").write_text(token)
+          print("✅ JWT üretildi.")
+          PYEOF
+
+          TOKEN=$(cat /tmp/asc_token)
+          BASE_URL="https://api.appstoreconnect.apple.com/v1"
+          BUILD_NUMBER=$GITHUB_RUN_NUMBER
+
+          # --- Uygulamanın App Store Connect ID'sini bul ---
+          echo "🔎 Uygulama aranıyor: $APP_BUNDLE_ID"
+          APP_ID=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+            "$BASE_URL/apps?filter[bundleId]=$APP_BUNDLE_ID" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'])")
+          echo "  → App ID: $APP_ID"
+
+          # --- Build işlenene kadar bekle (maks 20 dk) ---
+          echo "⏳ Build işlenmesi bekleniyor (build: $BUILD_NUMBER)..."
+          BUILD_ID=""
+          for i in $(seq 1 40); do
+            BUILDS=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+              "$BASE_URL/builds?filter[app]=$APP_ID&filter[version]=$BUILD_NUMBER&filter[processingState]=VALID&limit=1")
+            BUILD_ID=$(echo "$BUILDS" | python3 -c \
+              "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d['data'] else '')" 2>/dev/null || true)
+            if [ -n "$BUILD_ID" ]; then
+              echo "  ✅ Build hazır: $BUILD_ID"
+              break
+            fi
+            echo "  ⌛ Bekleniyor... ($((i*30)) sn)"
+            sleep 30
+          done
+
+          if [ -z "$BUILD_ID" ]; then
+            echo "❌ Build 20 dakika içinde işlenmedi. Manuel inceleme gerekebilir."
+            exit 1
+          fi
+
+          # --- Mevcut açık App Store sürümünü bul ---
+          echo "🔎 App Store sürümü aranıyor: $APP_VERSION"
+          VERSION_ID=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+            "$BASE_URL/apps/$APP_ID/appStoreVersions?filter[versionString]=$APP_VERSION&filter[platform]=IOS&filter[appStoreState]=PREPARE_FOR_SUBMISSION" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d['data'] else '')" 2>/dev/null || true)
+
+          # Sürüm yoksa yeni oluştur
+          if [ -z "$VERSION_ID" ]; then
+            echo "📝 Yeni App Store sürümü oluşturuluyor: $APP_VERSION"
+            VERSION_ID=$(curl -sf -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              "$BASE_URL/appStoreVersions" \
+              -d "{
+                \"data\": {
+                  \"type\": \"appStoreVersions\",
+                  \"attributes\": {
+                    \"platform\": \"IOS\",
+                    \"versionString\": \"$APP_VERSION\"
+                  },
+                  \"relationships\": {
+                    \"app\": { \"data\": { \"type\": \"apps\", \"id\": \"$APP_ID\" } }
+                  }
+                }
+              }" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+            echo "  → Oluşturuldu: $VERSION_ID"
+          else
+            echo "  → Mevcut sürüm: $VERSION_ID"
+          fi
+
+          # --- Build'i sürüme bağla ---
+          echo "🔗 Build sürüme bağlanıyor..."
+          curl -sf -X PATCH \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            "$BASE_URL/appStoreVersions/$VERSION_ID/relationships/build" \
+            -d "{
+              \"data\": { \"type\": \"builds\", \"id\": \"$BUILD_ID\" }
+            }" > /dev/null
+          echo "  ✅ Build bağlandı."
+
+          # --- Review'a gönder ---
+          echo "🚀 App Review'a gönderiliyor..."
+          SUBMISSION_ID=$(curl -sf -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            "$BASE_URL/appStoreVersionSubmissions" \
+            -d "{
+              \"data\": {
+                \"type\": \"appStoreVersionSubmissions\",
+                \"relationships\": {
+                  \"appStoreVersion\": {
+                    \"data\": { \"type\": \"appStoreVersions\", \"id\": \"$VERSION_ID\" }
+                  }
+                }
+              }
+            }" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+
+          echo ""
+          echo "🎉 =================================="
+          echo "   App Review'a gönderildi!"
+          echo "   Submission ID : $SUBMISSION_ID"
+          echo "   Versiyon      : $APP_VERSION (build $BUILD_NUMBER)"
+          echo "   App Store Connect → My Apps → App Review"
+          echo "   Apple inceleme süresi: genellikle 24-48 saat"
+          echo "==================================="
+
+      # ----------------------------------------------------------
+      # 9. IPA'yı Artifact Olarak Sakla (yedek)
+      # ----------------------------------------------------------
+      - name: "IPA'yı Artifact Olarak Kaydet"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstore-ipa-${{ github.run_number }}
+          path: build/ios/ipa/*.ipa
+          retention-days: 30
