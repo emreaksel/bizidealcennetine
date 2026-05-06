@@ -39,10 +39,6 @@ void main() async {
 
   // Önce linkleri kontrol et (iOS cold start için kritik)
   await initUniLinks(handleLink);
-
-  if (!Degiskenler.hazirlaniyor) {
-    await arkaplanIslemleri();
-  }
 }
 
 class MyApp extends StatefulWidget {
@@ -69,9 +65,9 @@ class _MyAppState extends State<MyApp> {
           onComplete: () async {
             // Hazırlık devam etmiyorsa VE liste henüz yüklenmediyse işlemleri başlat
             if (!Degiskenler.hazirlaniyor && !Degiskenler.listeYuklendi) {
-              await arkaplanIslemleri();
+              arkaplanIslemleri(); // await YOK — arka planda devam eder
             }
-            // İşlemler bittikten sonra splash ekranını kapat
+            // Splash ekranını hemen kapat, işlemler arka planda sürsün
             Degiskenler.showSplashNotifier.value = false;
           },
           displayDuration: const Duration(seconds: 5),

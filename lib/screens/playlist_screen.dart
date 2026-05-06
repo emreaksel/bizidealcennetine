@@ -52,8 +52,8 @@ class _ListeWidgetState extends State<ListeWidget>
       }
 
       // Sadece senkronize ise VE ikinci tabda boş liste varsa istek atalım
-      if (_tabController.index == 1 && 
-          Degiskenler.isSyncedNotifier.value && 
+      if (_tabController.index == 1 &&
+          Degiskenler.isSyncedNotifier.value &&
           Degiskenler.myLikesNotifier.value.isEmpty) {
         _fetchMyLikes();
       }
@@ -130,12 +130,13 @@ class _ListeWidgetState extends State<ListeWidget>
 
       filteredSongList = currentList.where((song) {
         String songName = _normalizeSearchText(song['parca_adi'].toString());
-        String singerName = _normalizeSearchText((song['seslendiren'] ?? "").toString());
+        String singerName =
+            _normalizeSearchText((song['seslendiren'] ?? "").toString());
         String songNumber = _normalizeSearchText(song['sira_no'].toString());
-        
-        return songName.contains(normalizedSearch) || 
-               singerName.contains(normalizedSearch) || 
-               songNumber.contains(normalizedSearch);
+
+        return songName.contains(normalizedSearch) ||
+            singerName.contains(normalizedSearch) ||
+            songNumber.contains(normalizedSearch);
       }).toList();
     });
   }
@@ -201,13 +202,16 @@ class _ListeWidgetState extends State<ListeWidget>
             builder: (context, myLikes, _) {
               final bool isSynced = Degiskenler.isSyncedNotifier.value;
               return ListView.builder(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: displayList.length,
                 itemBuilder: (context, index) {
                   final song = displayList[index];
-                  final bool isLiked = isSynced && 
-                      myLikes.any((liked) => liked['sira_no'].toString() == song['sira_no'].toString());
+                  final bool isLiked = isSynced &&
+                      myLikes.any((liked) =>
+                          liked['sira_no'].toString() ==
+                          song['sira_no'].toString());
 
                   return Container(
                     margin: EdgeInsets.symmetric(vertical: 4),
@@ -229,14 +233,13 @@ class _ListeWidgetState extends State<ListeWidget>
                         onTap: () {
                           FocusManager.instance.primaryFocus?.unfocus();
                           AudioService.loadQueueAndPlay(
-                            reverse ? songList.reversed.toList() : songList,
-                            song['sira_no']
-                          );
+                              reverse ? songList.reversed.toList() : songList,
+                              song['sira_no']);
                           UI_support.ekranboyut_ana(0);
                         },
                         child: Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
                           child: Row(
                             children: [
                               Container(
@@ -258,9 +261,12 @@ class _ListeWidgetState extends State<ListeWidget>
                                   children: [
                                     Flexible(
                                       child: Text(
-                                        song['parca_adi'].toString().toUpperCase(),
+                                        song['parca_adi']
+                                            .toString()
+                                            .toUpperCase(),
                                         style: TextStyle(
-                                          color: theme.textColor.withOpacity(0.9),
+                                          color:
+                                              theme.textColor.withOpacity(0.9),
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 1.0,
@@ -275,7 +281,8 @@ class _ListeWidgetState extends State<ListeWidget>
                                       child: Text(
                                         " • ",
                                         style: TextStyle(
-                                          color: theme.textColor.withOpacity(0.4),
+                                          color:
+                                              theme.textColor.withOpacity(0.4),
                                           fontSize: 14,
                                           letterSpacing: 2.0,
                                         ),
@@ -293,7 +300,8 @@ class _ListeWidgetState extends State<ListeWidget>
                                     ),
                                     if (isLiked) ...[
                                       SizedBox(width: 8),
-                                      Icon(Icons.favorite, color: theme.accentColor, size: 14),
+                                      Icon(Icons.favorite,
+                                          color: theme.accentColor, size: 14),
                                     ],
                                   ],
                                 ),
@@ -459,7 +467,8 @@ class _ListeWidgetState extends State<ListeWidget>
                               style: TextStyle(
                                   color: theme.textColor, fontSize: 14),
                               onChanged: (value) => _runSearch(value),
-                              onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                              onSubmitted: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
                               decoration: InputDecoration(
                                 hintText: "Hatırla...",
                                 hintStyle: TextStyle(
@@ -477,7 +486,8 @@ class _ListeWidgetState extends State<ListeWidget>
                                                 .withOpacity(0.5),
                                             size: 18),
                                         onPressed: () {
-                                          FocusManager.instance.primaryFocus?.unfocus();
+                                          FocusManager.instance.primaryFocus
+                                              ?.unfocus();
                                           setState(() {
                                             _searchController.clear();
                                             searchText = "";

@@ -46,7 +46,7 @@ class _PhysicsConfig {
   final double separationDist = 60.0;
 
   /// Kamera ile sürünün merkezi arasındaki maksimum derinlik (z ekseni)
-  final double areaRadius = 1200.0;
+  final double areaRadius = 700.0;
 
   /// Sınıra yaklaşıldığında uygulanan geri itme kuvvetinin çarpanı
   final double boundaryForce = 5.0;
@@ -57,11 +57,8 @@ class _PhysicsConfig {
   /// Dokunuş kaçırma kuvvetinin çarpanı — büyütmek daha sert kaçırır
   final double repelStrength = 2.5;
 
-  final double focalLength = 600.0;
-
-  /// Kuşların kameraya yaklaşabileceği maksimum z mesafesi (negatif yön)
-  /// focalLength değerinden küçük tutulmalı, aksi halde projeksiyon patlar
-  final double zNearLimit = 300.0;
+  /// Perspektif projeksiyonu için odak uzaklığı (focal length)
+  final double focalLength = 1000.0;
 }
 
 /// Görsel ayarlar — kanat animasyonu
@@ -155,14 +152,6 @@ void _rotZ(Vec3 p, double a) {
   p.y = ny;
 }
 
-void _rotX(Vec3 p, double a) {
-  final s = sin(a), c = cos(a);
-  final ny = p.y * c - p.z * s;
-  final nz = p.y * s + p.z * c;
-  p.y = ny;
-  p.z = nz;
-}
-
 Offset _project(Vec3 p) {
   final fl = BirdConfig.physics.focalLength;
   final zsc = fl + p.z;
@@ -199,7 +188,7 @@ class Boid {
   double get d => BirdConfig.physics.areaRadius;
 
   void run(List<Boid> flock, Size screenSize, double dtScale) {
-    w = screenSize.width * 1.15;
+    w = screenSize.width / 2;
     h = screenSize.height / 2;
     _boundary();
     if (_rng.nextDouble() > 0.5) {
@@ -236,7 +225,7 @@ class Boid {
     check(Vec3(w, pos.y, pos.z));
     check(Vec3(pos.x, -h, pos.z));
     check(Vec3(pos.x, h, pos.z));
-    check(Vec3(pos.x, pos.y, -BirdConfig.physics.zNearLimit));
+    check(Vec3(pos.x, pos.y, -d));
     check(Vec3(pos.x, pos.y, d));
   }
 
@@ -316,7 +305,6 @@ class BirdVisual {
   final Vec3 rot = Vec3();
   double phase;
   double wingY = 0;
-  double bankAngle = 0.0;
   Color baseColor;
 
   BirdVisual({required this.pos, required this.phase, required this.baseColor});
@@ -330,7 +318,6 @@ class BirdVisual {
       }).toList();
       if (fi > 0) pts[0].y = wingY;
       for (final p in pts) {
-        _rotX(p, bankAngle);
         _rotY(p, rot.y);
         _rotZ(p, rot.z);
         p.x += pos.x;
@@ -455,7 +442,7 @@ class FlightOverlayState extends State<FlightOverlay>
       boid.vel.set(
         _rng.nextDouble() * 4 - 2,
         _rng.nextDouble() * 4 - 2,
-        _rng.nextDouble() * 6 - 3,
+        _rng.nextDouble() * 4 - 2,
       );
       _boids.add(boid);
       _visuals.add(BirdVisual(
@@ -494,18 +481,7 @@ class FlightOverlayState extends State<FlightOverlay>
       boid.run(_boids, size, dtScale);
 
       final visual = _visuals[i];
-      final newRotY = atan2(-boid.vel.z, boid.vel.x);
-
-      // Yaw değişiminden banka açısı türet
-      double yawDelta = newRotY - visual.rot.y;
-      if (yawDelta > pi) yawDelta -= 2 * pi; // açı sarmasını düzelt
-      if (yawDelta < -pi) yawDelta += 2 * pi;
-
-      // Yumuşatılmış banka — hızlı dönüşlerde kanat eğer, düzleşince geri döner
-      visual.bankAngle = (visual.bankAngle * 0.88 - yawDelta * 12.0 * 0.12)
-          .clamp(-pi / 2.5, pi / 2.5);
-
-      visual.rot.y = newRotY;
+      visual.rot.y = atan2(-boid.vel.z, boid.vel.x);
       final vLen = boid.vel.len;
       visual.rot.z = vLen > 0 ? asin((boid.vel.y / vLen).clamp(-1.0, 1.0)) : 0;
 

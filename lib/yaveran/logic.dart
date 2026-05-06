@@ -21,6 +21,10 @@ DateTime? _lastHandleTime;
 Future<void> arkaplanIslemleri() async {
   LogService().info("Arkaplan işlemleri başlatılıyor...", tag: "Logic");
   Degiskenler.hazirlaniyor = true;
+
+  // ✅ YENİ: Splash kapandığında loader'ın gözükmesi için bu notifier'ı aktif et
+  app_audio.AudioService.playlistLoadingNotifier.value = true;
+
   await Degiskenler.loadTheme();
 
   try {
@@ -273,6 +277,8 @@ Future<void> fetchData_jsonDinlemeListesi(String url, String link,
     await setPlaylist(listDinle, playNow: playNow);
   } catch (error) {
     print("Hata oluştu: $error");
+    // Hata durumunda loader'ı kapat ki UI asılı kalmasın
+    app_audio.AudioService.playlistLoadingNotifier.value = false;
   }
 }
 
@@ -366,37 +372,52 @@ Future<Map<String, dynamic>> getirJsonData(String yol) async {
   }
 }
 
-void bildirimKontrol(bildirim) async {
-  String vakit1Str = bildirim["vakit1"];
-  String vakit2Str = bildirim["vakit2"];
-
-  DateTime parseDateTime(String dateStr) {
-    List<String> parts = dateStr.split(" ");
-    List<String> dateParts = parts[0].split("/");
-    List<String> timeParts = parts[1].split(":");
-
-    int day = int.parse(dateParts[0]);
-    int month = int.parse(dateParts[1]);
-    int year = int.parse(dateParts[2]);
-    int hour = int.parse(timeParts[0]);
-    int minute = int.parse(timeParts[1]);
-
-    return DateTime(year, month, day, hour, minute);
-  }
-
-  DateTime vakit1 = parseDateTime(vakit1Str);
-  DateTime vakit2 = parseDateTime(vakit2Str);
-
-  DateTime now = DateTime.now().toUtc();
-  DateTime suAn = now.add(Duration(hours: 3));
-
-  if (suAn.isAfter(vakit1) && suAn.isBefore(vakit2)) {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? yanit = prefs.getString('bildirim') ?? "bos";
-
-    if (yanit != bildirim["metin"]) {
-      Degiskenler.currentNoticeNotifier.value = bildirim["metin"];
-      Degiskenler.showDialogNotifier.value = true;
+void bildirimKontrol(Map<String, dynamic> bildirim) async {
+  try {
+    // 1. Platform Kontrolü
+    final String targetPlatformStr =
+        (bildirim["platform"] ?? "all").toString().toLowerCase();
+    if (targetPlatformStr != "all") {
+      if (defaultTargetPlatform == TargetPlatform.iOS &&
+          targetPlatformStr != "ios") return;
+      if (defaultTargetPlatform == TargetPlatform.android &&
+          targetPlatformStr != "android") return;
     }
+
+    // 2. Zaman Aralığı Kontrolü (ISO 8601 Formatı)
+    String? baslangicStr = bildirim["baslangic"];
+    String? bitisStr = bildirim["bitis"];
+    if (baslangicStr == null || bitisStr == null) return;
+
+    DateTime baslangic = DateTime.parse(baslangicStr);
+    DateTime bitis = DateTime.parse(bitisStr);
+
+    // Türkiye saati (UTC+3) kontrolü
+    DateTime suAn = DateTime.now().toUtc().add(const Duration(hours: 3));
+
+    if (suAn.isAfter(baslangic) && suAn.isBefore(bitis)) {
+      final String gosterim = bildirim["gosterim"] ?? "H";
+      final String metin = bildirim["metin"] ?? "";
+
+      if (metin.isEmpty) return;
+
+      if (gosterim == "T") {
+        // "T" (Tek seferlik): Daha önce gösterilip onaylanmış mı?
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        String? kaydedilenMetin = prefs.getString('bildirim');
+
+        if (kaydedilenMetin != metin) {
+          Degiskenler.currentNoticeNotifier.value = metin;
+          Degiskenler.showDialogNotifier.value = true;
+        }
+      } else {
+        // "H" (Her açılışta): Her zaman göster
+        Degiskenler.currentNoticeNotifier.value = metin;
+        Degiskenler.showDialogNotifier.value = true;
+      }
+    }
+  } catch (e) {
+    // Tarih formatı hatalıysa veya veri eksikse hatayı logla ancak uygulamayı çökertme
+    LogService().error("Bildirim kontrol hatası: $e", tag: "Logic");
   }
 }
