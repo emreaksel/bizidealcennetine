@@ -637,26 +637,28 @@ class SettingsMenu extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // System Logs Section
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const LogViewScreen()),
-                    );
-                    LogService().info("Sistem logları görüntülendi", tag: "UI");
-                  },
-                  child: _buildSettingSection(
-                    theme,
-                    "Sistem Logları",
-                    Icons.terminal_rounded,
-                    null,
-                    trailing: Icon(Icons.arrow_forward_ios_rounded,
-                        color: theme.accentColor, size: 16),
+                if (Degiskenler.showLogs) ...[
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const LogViewScreen()),
+                      );
+                      LogService()
+                          .info("Sistem logları görüntülendi", tag: "UI");
+                    },
+                    child: _buildSettingSection(
+                      theme,
+                      "Sistem Logları",
+                      Icons.terminal_rounded,
+                      null,
+                      trailing: Icon(Icons.arrow_forward_ios_rounded,
+                          color: theme.accentColor, size: 16),
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+                ],
 
                 // Theme Section
                 _buildSettingSection(
