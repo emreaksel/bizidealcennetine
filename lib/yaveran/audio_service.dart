@@ -595,19 +595,14 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       // ✅ Arka planda sırayı koruyarak ekle
       Future.microtask(() async {
         try {
-          const chunkSize = 50;
+          const chunkSize = 200; // Chunk boyutu artırıldı
 
           if (effectiveIndex > 0) {
             for (int i = 0; i < effectiveIndex; i += chunkSize) {
               final end = (i + chunkSize).clamp(0, effectiveIndex);
               final chunk = sources.sublist(i, end);
               await _concatenatingSource.insertAll(i, chunk);
-              final newItems = chunk
-                  .map((s) => (s as UriAudioSource).tag as MediaItem)
-                  .toList();
-              final current = List<MediaItem>.from(queue.value);
-              current.insertAll(i, newItems);
-              queue.add(current);
+              // UI thread'ine nefes aldır ama queue'yu henüz güncelleme
               await Future.delayed(Duration.zero);
             }
           }
@@ -618,13 +613,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
               final end = (i + chunkSize).clamp(0, sources.length);
               final chunk = sources.sublist(i, end);
               await _concatenatingSource.addAll(chunk);
-              final newItems = chunk
-                  .map((s) => (s as UriAudioSource).tag as MediaItem)
-                  .toList();
-              queue.add(List<MediaItem>.from(queue.value)..addAll(newItems));
+              // UI thread'ine nefes aldır ama queue'yu henüz güncelleme
               await Future.delayed(Duration.zero);
             }
           }
+
+          // ✅ Tüm yükleme bittiğinde tek seferde kuyruğu güncelle (UI donmasını önler)
+          final allItems =
+              sources.map((s) => (s as UriAudioSource).tag as MediaItem).toList();
+          queue.add(allItems);
 
           // ✅ Tüm yükleme tamamlandı, artık gerçek index güvenli
           AudioService.setCurrentTrack(effectiveIndex);
@@ -686,6 +683,12 @@ class AudioService {
   AudioService._();
 
   static MyAudioHandler? _audioHandler;
+
+  static const Map<String, String> _defaultHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+    'Accept': '*/*',
+    'Connection': 'keep-alive',
+  };
 
   static String _parcaAdi = '...';
   static String _seslendiren = '...';
@@ -954,46 +957,19 @@ class AudioService {
       return;
     }
 
-    final sources = <AudioSource>[];
-    final mediaItems = <MediaItem>[];
-
-    // Optimize: Sabit resmi bir kere parse et
-    final defaultArtUri =
-        Uri.parse("${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg");
-
-    // Optimize: Listeyi chunk'lar halinde işleyerek UI frame'ine izin ver
-    const int chunkSize = 20; // Chunk boyutu küçültüldü (100 -> 20)
-    for (int i = 0; i < songList.length; i += chunkSize) {
-      final end = (i + chunkSize).clamp(0, songList.length);
-      for (int j = i; j < end; j++) {
-        final song = songList[j];
-        final String? url = song['url'];
-        
-        // Web ve mobil stabilitesi için boş veya null URL'li parçaları atlayalım
-        if (url == null || url.isEmpty) continue;
-
-        final item = MediaItem(
-          id: song['sira_no'].toString(),
-          title: song['parca_adi'].toString(),
-          artist: (song['seslendiren'] ?? '...').toString(),
-          artUri: defaultArtUri,
-        );
-        mediaItems.add(item);
-        sources.add(_buildAudioSource(url, item));
-      }
-      // Main thread'in kilitlenmesini önler
-      await Future.delayed(Duration.zero);
-    }
+    // 🚀 AĞIR İŞLEM: Listeyi Isolate'te hazırla (UI thread'i bloke etmez)
+    final sources = await compute(_generateSources, songList);
 
     final startIndex = sources.indexWhere((s) =>
         ((s as UriAudioSource).tag as MediaItem).id == startId.toString());
 
     LogService().debug(
-        "loadQueueAndPlay → startId: $startId, startIndex: ${startIndex == -1 ? 0 : startIndex}",
+        "loadQueueAndPlay (Isolate) → startId: $startId, startIndex: ${startIndex == -1 ? 0 : startIndex}",
         tag: "Audio");
 
-    _parcaListesi = mediaItems;
     _parcaKaynaklari = List.from(sources);
+    _parcaListesi =
+        sources.map((s) => (s as UriAudioSource).tag as MediaItem).toList();
 
     await _audioHandler!.loadPlaylist(
       sources,
@@ -1274,12 +1250,34 @@ class AudioService {
   static AudioSource _buildAudioSource(String url, MediaItem tag) {
     return AudioSource.uri(
       Uri.parse(url),
-      headers: const {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
-        'Accept': '*/*',
-        'Connection': 'keep-alive',
-      },
+      headers: _defaultHeaders,
       tag: tag,
     );
+  }
+
+  /// 🚀 Listeyi isolate'te hazırlayan yardımcı metod (UI thread donmasını önler)
+  static List<AudioSource> _generateSources(List<dynamic> songList) {
+    final defaultArtUri =
+        Uri.parse("${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg");
+    final sources = <AudioSource>[];
+
+    for (final song in songList) {
+      final String? url = song['url'];
+      if (url == null || url.isEmpty) continue;
+
+      final item = MediaItem(
+        id: song['sira_no'].toString(),
+        title: song['parca_adi'].toString(),
+        artist: (song['seslendiren'] ?? '...').toString(),
+        artUri: defaultArtUri,
+      );
+
+      sources.add(AudioSource.uri(
+        Uri.parse(url),
+        headers: _defaultHeaders,
+        tag: item,
+      ));
+    }
+    return sources;
   }
 }
