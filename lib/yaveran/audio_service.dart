@@ -189,9 +189,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       _player.positionStream.listen((position) {
         playbackState
             .add(playbackState.value.copyWith(updatePosition: position));
+        
+        // Web'de bufferedPosition veya duration bazen null dönebiliyor, güvenliğe alalım
         AudioService.progressNotifier.value = ProgressBarState(
           current: position,
-          buffered: _player.bufferedPosition,
+          buffered: _player.bufferedPosition ?? Duration.zero,
           total: _player.duration ?? Duration.zero,
         );
       });
@@ -200,7 +202,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         final cur = AudioService.progressNotifier.value;
         AudioService.progressNotifier.value = ProgressBarState(
           current: cur.current,
-          buffered: buffered,
+          buffered: buffered ?? Duration.zero,
           total: cur.total,
         );
       });
@@ -212,8 +214,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           buffered: cur.buffered,
           total: duration ?? Duration.zero,
         );
-        if (duration != null && mediaItem.value != null) {
-          mediaItem.add(mediaItem.value!.copyWith(duration: duration));
+        final currentMediaItem = mediaItem.value;
+        if (duration != null && currentMediaItem != null) {
+          mediaItem.add(currentMediaItem.copyWith(duration: duration));
         }
       });
 
@@ -276,10 +279,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await _player.setShuffleModeEnabled(true);
 
       Degiskenler.currentImageNotifier.addListener(() {
-        if (mediaItem.value == null) return;
+        final currentItem = mediaItem.value;
+        if (currentItem == null) return;
+        
         final name = Degiskenler.currentImageNotifier.value;
         if (name.isNotEmpty) {
-          mediaItem.add(mediaItem.value!.copyWith(
+          mediaItem.add(currentItem.copyWith(
             artUri: Uri.parse('${Degiskenler.kaynakYolu}medya/atesiask/$name'),
           ));
         }
@@ -332,7 +337,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       processingState: state,
       playing: playing,
       updatePosition: _player.position,
-      bufferedPosition: _player.bufferedPosition,
+      bufferedPosition: _player.bufferedPosition ?? Duration.zero,
       speed: _player.speed,
       queueIndex: _player.currentIndex,
     ));
@@ -521,9 +526,49 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     int initialIndex = 0,
   }) async {
     AudioService.playlistLoadingNotifier.value = true;
+    // UI'ın loader'ı çizmesine izin ver
     await Future.delayed(const Duration(milliseconds: 50));
 
     final effectiveIndex = initialIndex.clamp(0, sources.length - 1);
+
+    // 🌐 Web platformunda büyük listelerle (4000+) ConcatenatingAudioSource ve initialIndex kullanımı
+    // motor seviyesinde "Unexpected null value" hatasına yol açabiliyor.
+    if (kIsWeb) {
+      try {
+        await initialized;
+        _isStopped = false;
+        
+        // Web'de büyük listeler için lazy preparation'ı kapatalım, daha stabil olabilir
+        _concatenatingSource = ConcatenatingAudioSource(
+          children: sources, 
+          useLazyPreparation: false 
+        );
+        
+        final fullQueue = sources
+            .whereType<UriAudioSource>()
+            .map((s) => s.tag as MediaItem)
+            .toList();
+        queue.add(fullQueue);
+        
+        _suppressIndexEventsUntil = DateTime.now().add(const Duration(milliseconds: 1000));
+        
+        // Önce listeyi 0. indeksten (en güvenli) yükle
+        await _player.setAudioSource(_concatenatingSource, initialIndex: 0);
+        
+        // Eğer hedef parça 0 değilse, kısa bir gecikme sonrası oraya atla
+        if (effectiveIndex > 0) {
+          await Future.delayed(const Duration(milliseconds: 200));
+          await _player.seek(Duration.zero, index: effectiveIndex);
+        }
+        
+        AudioService.setCurrentTrack(effectiveIndex);
+        return;
+      } catch (e, st) {
+        LogService().error("Web loadPlaylist hatası: $e\n$st", tag: "Audio");
+      } finally {
+        AudioService.playlistLoadingNotifier.value = false;
+      }
+    }
 
     try {
       await initialized;
@@ -549,39 +594,43 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
       // ✅ Arka planda sırayı koruyarak ekle
       Future.microtask(() async {
-        const chunkSize = 50;
+        try {
+          const chunkSize = 50;
 
-        if (effectiveIndex > 0) {
-          for (int i = 0; i < effectiveIndex; i += chunkSize) {
-            final end = (i + chunkSize).clamp(0, effectiveIndex);
-            final chunk = sources.sublist(i, end);
-            await _concatenatingSource.insertAll(i, chunk);
-            final newItems = chunk
-                .map((s) => (s as UriAudioSource).tag as MediaItem)
-                .toList();
-            final current = List<MediaItem>.from(queue.value);
-            current.insertAll(i, newItems);
-            queue.add(current);
-            await Future.delayed(Duration.zero);
+          if (effectiveIndex > 0) {
+            for (int i = 0; i < effectiveIndex; i += chunkSize) {
+              final end = (i + chunkSize).clamp(0, effectiveIndex);
+              final chunk = sources.sublist(i, end);
+              await _concatenatingSource.insertAll(i, chunk);
+              final newItems = chunk
+                  .map((s) => (s as UriAudioSource).tag as MediaItem)
+                  .toList();
+              final current = List<MediaItem>.from(queue.value);
+              current.insertAll(i, newItems);
+              queue.add(current);
+              await Future.delayed(Duration.zero);
+            }
           }
-        }
 
-        final afterStart = effectiveIndex + 1;
-        if (afterStart < sources.length) {
-          for (int i = afterStart; i < sources.length; i += chunkSize) {
-            final end = (i + chunkSize).clamp(0, sources.length);
-            final chunk = sources.sublist(i, end);
-            await _concatenatingSource.addAll(chunk);
-            final newItems = chunk
-                .map((s) => (s as UriAudioSource).tag as MediaItem)
-                .toList();
-            queue.add(List<MediaItem>.from(queue.value)..addAll(newItems));
-            await Future.delayed(Duration.zero);
+          final afterStart = effectiveIndex + 1;
+          if (afterStart < sources.length) {
+            for (int i = afterStart; i < sources.length; i += chunkSize) {
+              final end = (i + chunkSize).clamp(0, sources.length);
+              final chunk = sources.sublist(i, end);
+              await _concatenatingSource.addAll(chunk);
+              final newItems = chunk
+                  .map((s) => (s as UriAudioSource).tag as MediaItem)
+                  .toList();
+              queue.add(List<MediaItem>.from(queue.value)..addAll(newItems));
+              await Future.delayed(Duration.zero);
+            }
           }
-        }
 
-        // ✅ Tüm yükleme tamamlandı, artık gerçek index güvenli
-        AudioService.setCurrentTrack(effectiveIndex);
+          // ✅ Tüm yükleme tamamlandı, artık gerçek index güvenli
+          AudioService.setCurrentTrack(effectiveIndex);
+        } catch (e, st) {
+          LogService().error("Microtask loadPlaylist hatası: $e\n$st", tag: "Audio");
+        }
       });
     } finally {
       _suppressIndexEventsUntil =
@@ -913,21 +962,26 @@ class AudioService {
         Uri.parse("${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg");
 
     // Optimize: Listeyi chunk'lar halinde işleyerek UI frame'ine izin ver
-    const int chunkSize = 100;
+    const int chunkSize = 20; // Chunk boyutu küçültüldü (100 -> 20)
     for (int i = 0; i < songList.length; i += chunkSize) {
       final end = (i + chunkSize).clamp(0, songList.length);
       for (int j = i; j < end; j++) {
         final song = songList[j];
+        final String? url = song['url'];
+        
+        // Web ve mobil stabilitesi için boş veya null URL'li parçaları atlayalım
+        if (url == null || url.isEmpty) continue;
+
         final item = MediaItem(
           id: song['sira_no'].toString(),
           title: song['parca_adi'].toString(),
-          artist: song['seslendiren'] ?? '...',
+          artist: (song['seslendiren'] ?? '...').toString(),
           artUri: defaultArtUri,
         );
         mediaItems.add(item);
-        sources.add(_buildAudioSource(song['url'] ?? '', item));
+        sources.add(_buildAudioSource(url, item));
       }
-      // Main thread'in kilitlenmesini önler, süreyi uzatmaz
+      // Main thread'in kilitlenmesini önler
       await Future.delayed(Duration.zero);
     }
 

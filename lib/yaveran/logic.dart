@@ -122,7 +122,7 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
   // AudioSource nesnelerini chunk'lar hâlinde oluştur.
   // Her chunk arasında event loop'a nefes aldır — büyük listelerde
   // tek seferlik senkron döngü iOS'ta 3-5 sn ekran donmasına yol açıyordu.
-  const int chunkSize = 40;
+  const int chunkSize = 20; // Chunk boyutu daha da küçültüldü (40 -> 20)
   final List<AudioSource> playlist = [];
 
   for (int i = 0; i < reversedData.length; i += chunkSize) {
@@ -131,6 +131,7 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
       final item = reversedData[j];
       final String? url = item['url'];
       if (url == null || url.isEmpty) continue;
+      
       playlist.add(
         AudioSource.uri(
           Uri.parse(url),
@@ -148,10 +149,8 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
         ),
       );
     }
-    // Chunk arası: UI frame'inin render edilmesine izin ver
-    if (end < reversedData.length) {
-      await Future.delayed(Duration.zero);
-    }
+    // Her chunk sonrası UI'a vakit tanı
+    await Future.delayed(Duration.zero);
   }
 
   await app_audio.AudioService.setPlaylist(playlist, playNow: playNow);

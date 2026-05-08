@@ -180,34 +180,56 @@ class _KenBurnsViewWidgetState extends State<KenBurnsViewWidget> {
   }
 }
 
-class AkanYazi extends StatelessWidget {
-  final String text;
+class AkanYazi extends StatefulWidget {
+  final String? text;
+  AkanYazi([this.text]);
 
-  AkanYazi(this.text);
+  @override
+  _AkanYaziState createState() => _AkanYaziState();
+}
+
+class _AkanYaziState extends State<AkanYazi> {
+  String _lastText = "";
+  String _formattedText = "";
+  double _lastFontSize = 0;
+  double _lastScreenWidth = 0;
+
+  String _getFormattedText(
+      String text, double fontSize, double screenWidth, double screenHeight) {
+    // Eğer girdi değişmediyse önbellekteki sonucu dön
+    if (text == _lastText &&
+        fontSize == _lastFontSize &&
+        screenWidth == _lastScreenWidth) {
+      return _formattedText;
+    }
+
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: TextStyle(fontSize: fontSize)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    double textWidth = painter.width;
+    int targetLength = (textWidth / 3.34).toInt();
+
+    if (screenWidth > textWidth) {
+      _formattedText = text + ' ' * (screenWidth / 3.9).toInt();
+    } else {
+      int spacesToAdd = targetLength - text.length;
+      _formattedText = text + ' ' * (spacesToAdd > 0 ? spacesToAdd : 0);
+    }
+
+    _lastText = text;
+    _lastFontSize = fontSize;
+    _lastScreenWidth = screenWidth;
+
+    return _formattedText;
+  }
 
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
     double yaziBoyutu = screenHeight * 0.019;
-
-    String setEpigram(String text) {
-      final painter = TextPainter(
-        text: TextSpan(text: text, style: TextStyle(fontSize: yaziBoyutu)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      double textWidth = painter.width;
-      int targetLength = (textWidth / 3.34).toInt();
-      String finalText;
-      if (screenWidth > textWidth) {
-        finalText = text + ' ' * (screenWidth / 3.9).toInt();
-      } else {
-        int spacesToAdd = targetLength - text.length;
-        finalText = text + ' ' * spacesToAdd;
-      }
-      return finalText;
-    }
 
     return ValueListenableBuilder<AppTheme>(
       valueListenable: Degiskenler.currentThemeNotifier,
@@ -250,7 +272,8 @@ class AkanYazi extends StatelessWidget {
                 child: Material(
                   type: MaterialType.transparency,
                   child: TextScroll(
-                    setEpigram(title),
+                    _getFormattedText(
+                        title, yaziBoyutu, screenWidth, screenHeight),
                     mode: TextScrollMode.endless,
                     velocity: const Velocity(pixelsPerSecond: Offset(40, 0)),
                     delayBefore: const Duration(milliseconds: 1000),
@@ -368,6 +391,8 @@ class _Base64ImageWidgetState extends State<Base64ImageWidget>
                 child: Image.memory(
                   _oldImageBytes!,
                   fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                  cacheWidth: 800,
                 ),
               ),
             FadeTransition(
@@ -376,6 +401,8 @@ class _Base64ImageWidgetState extends State<Base64ImageWidget>
               child: Image.memory(
                 _imageBytes!,
                 fit: BoxFit.cover,
+                gaplessPlayback: true,
+                cacheWidth: 800,
               ),
             ),
           ],

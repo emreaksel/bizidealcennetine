@@ -152,10 +152,6 @@ class _ListeWidgetState extends State<ListeWidget>
     List<dynamic> displayList =
         filteredSongList.isNotEmpty ? filteredSongList : songList;
 
-    if (reverse) {
-      displayList = displayList.reversed.toList();
-    }
-
     return ValueListenableBuilder<AppTheme>(
       valueListenable: Degiskenler.currentThemeNotifier,
       builder: (context, theme, _) {
@@ -206,8 +202,11 @@ class _ListeWidgetState extends State<ListeWidget>
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: displayList.length,
+                itemExtent: 84.0,
                 itemBuilder: (context, index) {
-                  final song = displayList[index];
+                  // Büyük listelerde .reversed.toList() yerine index ile ters okumak performansı artırır
+                  final actualIndex = reverse ? displayList.length - 1 - index : index;
+                  final song = displayList[actualIndex];
                   final bool isLiked = isSynced &&
                       myLikes.any((liked) =>
                           liked['sira_no'].toString() ==
