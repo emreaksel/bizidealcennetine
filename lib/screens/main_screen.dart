@@ -1,15 +1,17 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../yaveran/Degiskenler.dart';
+import '../services/Degiskenler.dart';
 import '../yaveran/widgets.dart';
-import '../yaveran/audio_service.dart';
-import '../yaveran/Notifier.dart';
+import '../services/audio/audio_service.dart';
+import '../services/Notifier.dart';
 import '../widgets/visuals.dart';
 import '../widgets/confetti.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/settings_menu.dart';
-import 'playlist_screen.dart';
-import 'discovery_screen.dart';
+import 'listeler_ekrani.dart';
+import 'diger_listeler_ekrani.dart';
 import '../yaveran/app_theme.dart';
+import '../widgets/kus_kelebek.dart';
 
 class MainScreen extends StatelessWidget {
   @override
@@ -46,9 +48,21 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                         return IndexedStack(
                           index: value,
                           children: [
-                            ImprovedConfettiDemo(
-                              child: KenBurnsViewWidget(
-                                backWidget: AkanYazi(""),
+                            GestureDetector(
+                              onTapDown: (details) {
+                                if (math.Random().nextDouble() < 0.01) {
+                                  Degiskenler.butterflyTriggerNotifier.value =
+                                      true;
+                                } else {
+                                  Degiskenler.confettiTriggerNotifier.value =
+                                      ConfettiTriggerData(
+                                          details.localPosition);
+                                }
+                              },
+                              child: ImprovedConfettiDemo(
+                                child: KenBurnsViewWidget(
+                                  backWidget: AkanYazi(""),
+                                ),
                               ),
                             ),
                             ListeWidget(),
@@ -91,8 +105,10 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                       valueListenable: AudioService.playButtonNotifier,
                       builder: (context, buttonState, child) {
                         // İki durumdan herhangi biri "yükleniyor" ise loader'ı göster.
-                        final bool isPlayerLoading = (buttonState == ButtonState.loading);
-                        final bool shouldShowLoader = isPlaylistLoading || isPlayerLoading;
+                        final bool isPlayerLoading =
+                            (buttonState == ButtonState.loading);
+                        final bool shouldShowLoader =
+                            isPlaylistLoading || isPlayerLoading;
 
                         return SpiritualLoader(
                           isLoading: shouldShowLoader,
@@ -116,6 +132,7 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                 ),
               ],
             ),
+            const IgnorePointer(child: ButterflyOverlay()),
           ],
         );
       },

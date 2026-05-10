@@ -2,8 +2,8 @@ import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import '../yaveran/Degiskenler.dart';
-import '../yaveran/app_theme.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/yaveran/app_theme.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  KUŞ AYARLARI
@@ -523,14 +523,14 @@ class BirdVisual {
 }
 
 // ── WIDGET ────────────────────────────────────────────────────────────────
-class FlightOverlay extends StatefulWidget {
-  const FlightOverlay({Key? key}) : super(key: key);
+class TaklaciOverlay extends StatefulWidget {
+  const TaklaciOverlay({Key? key}) : super(key: key);
 
   @override
-  FlightOverlayState createState() => FlightOverlayState();
+  TaklaciOverlayState createState() => TaklaciOverlayState();
 }
 
-class FlightOverlayState extends State<FlightOverlay>
+class TaklaciOverlayState extends State<TaklaciOverlay>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final List<Boid> _boids = [];

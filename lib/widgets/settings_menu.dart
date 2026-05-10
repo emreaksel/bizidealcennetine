@@ -1,11 +1,11 @@
+import 'package:bizidealcennetine/services/MusicApiService.dart';
+import 'package:bizidealcennetine/services/log_service.dart';
 import 'package:flutter/material.dart';
-import '../yaveran/Degiskenler.dart';
+import '../services/Degiskenler.dart';
 import '../yaveran/app_theme.dart';
-import '../yaveran/MusicApiService.dart';
-import '../yaveran/audio_service.dart';
+import '../services/audio/audio_service.dart';
 import 'sync_dialog.dart';
 import '../screens/log_view_screen.dart';
-import '../yaveran/log_service.dart';
 
 class SettingsMenu extends StatelessWidget {
   final MusicApiService _apiService = MusicApiService();

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../yaveran/Degiskenler.dart';
-import '../yaveran/ui_support.dart';
-import '../yaveran/logic.dart';
-import '../yaveran/app_theme.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/yaveran/ui_support.dart';
+import 'package:bizidealcennetine/services/arkaplanislemleri.dart';
+import 'package:bizidealcennetine/yaveran/app_theme.dart';
 import 'dart:math' as math;
 
 class DinlemeListesiWidget extends StatefulWidget {

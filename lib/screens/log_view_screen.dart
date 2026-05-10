@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../yaveran/log_service.dart';
-import '../yaveran/Degiskenler.dart';
+import 'package:bizidealcennetine/services/log_service.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
 
 class LogViewScreen extends StatefulWidget {
   const LogViewScreen({super.key});

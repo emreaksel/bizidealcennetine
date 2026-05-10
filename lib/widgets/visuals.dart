@@ -3,11 +3,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:kenburns_nullsafety/kenburns_nullsafety.dart';
 import 'package:text_scroll/text_scroll.dart';
-import '../yaveran/Degiskenler.dart';
-import '../yaveran/app_theme.dart';
-import '../yaveran/HttpService.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/yaveran/app_theme.dart';
+import 'package:bizidealcennetine/services/HttpService.dart';
 import 'dart:async';
-import 'kus.dart';
+import 'package:bizidealcennetine/widgets/kus.dart';
 
 class SpiritualLoader extends StatefulWidget {
   final bool isLoading;
@@ -150,7 +150,7 @@ class KenBurnsViewWidget extends StatefulWidget {
 }
 
 class _KenBurnsViewWidgetState extends State<KenBurnsViewWidget> {
-  final GlobalKey<FlightOverlayState> _birdKey = GlobalKey();
+  final GlobalKey<BirdOverlayState> _birdKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -158,16 +158,12 @@ class _KenBurnsViewWidgetState extends State<KenBurnsViewWidget> {
       color: Colors.black,
       child: Stack(
         children: [
-          GestureDetector(
-            onTapDown: (details) => _birdKey.currentState
-                ?.spawns(count: 6, position: details.localPosition),
-            child: KenBurns(
-                minAnimationDuration: const Duration(milliseconds: 10000),
-                maxAnimationDuration: const Duration(milliseconds: 13000),
-                maxScale: 1.3,
-                child: Base64ImageWidget()),
-          ),
-          FlightOverlay(key: _birdKey),
+          KenBurns(
+              minAnimationDuration: const Duration(milliseconds: 10000),
+              maxAnimationDuration: const Duration(milliseconds: 13000),
+              maxScale: 1.3,
+              child: Base64ImageWidget()),
+          IgnorePointer(child: BirdOverlay(key: _birdKey)),
           Positioned(
             bottom: 0,
             left: 0,

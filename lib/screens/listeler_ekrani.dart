@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../yaveran/Degiskenler.dart';
-import '../yaveran/MusicApiService.dart';
-import '../yaveran/audio_service.dart';
+import '../services/Degiskenler.dart';
+import '../services/MusicApiService.dart';
+import '../services/audio/audio_service.dart';
 import '../yaveran/ui_support.dart';
 import '../yaveran/widgets.dart';
 import '../yaveran/app_theme.dart';
@@ -148,7 +148,8 @@ class _ListeWidgetState extends State<ListeWidget>
     return fontSize;
   }
 
-  Widget _buildSongList(List<dynamic> songList, {bool reverse = true}) {
+  Widget _buildSongList(List<dynamic> songList,
+      {bool reverse = true, bool isMainList = true}) {
     List<dynamic> displayList =
         filteredSongList.isNotEmpty ? filteredSongList : songList;
 
@@ -205,7 +206,8 @@ class _ListeWidgetState extends State<ListeWidget>
                 itemExtent: 84.0,
                 itemBuilder: (context, index) {
                   // Büyük listelerde .reversed.toList() yerine index ile ters okumak performansı artırır
-                  final actualIndex = reverse ? displayList.length - 1 - index : index;
+                  final actualIndex =
+                      reverse ? displayList.length - 1 - index : index;
                   final song = displayList[actualIndex];
                   final bool isLiked = isSynced &&
                       myLikes.any((liked) =>
@@ -231,9 +233,19 @@ class _ListeWidgetState extends State<ListeWidget>
                         borderRadius: BorderRadius.circular(16),
                         onTap: () {
                           FocusManager.instance.primaryFocus?.unfocus();
-                          AudioService.loadQueueAndPlay(
-                              reverse ? songList.reversed.toList() : songList,
-                              song['sira_no']);
+
+                          if (isMainList) {
+                            AudioService.switchToMainList();
+                          } else {
+                            AudioService.switchToDokunanlar(songList);
+                          }
+
+                          final siraNo =
+                              int.tryParse(song['sira_no'].toString()) ?? -1;
+                          if (siraNo != -1) {
+                            AudioService.playSong(siraNo);
+                          }
+
                           UI_support.ekranboyut_ana(0);
                         },
                         child: Padding(
@@ -389,8 +401,10 @@ class _ListeWidgetState extends State<ListeWidget>
                           // 1. HAZİNE (ANA LİSTE)
                           ValueListenableBuilder<List<dynamic>>(
                             valueListenable: Degiskenler.songListNotifier,
-                            builder: (context, songList, _) =>
-                                _buildSongList(songList, reverse: true),
+                            builder: (context, songList, _) => _buildSongList(
+                                songList,
+                                reverse: true,
+                                isMainList: true),
                           ),
 
                           // 2. DOKUNANLAR (BEĞENİLER)
@@ -398,7 +412,8 @@ class _ListeWidgetState extends State<ListeWidget>
                               ? ValueListenableBuilder<List<dynamic>>(
                                   valueListenable: Degiskenler.myLikesNotifier,
                                   builder: (context, myLikes, _) =>
-                                      _buildSongList(myLikes, reverse: false),
+                                      _buildSongList(myLikes,
+                                          reverse: false, isMainList: false),
                                 )
                               : Center(
                                   child: Column(

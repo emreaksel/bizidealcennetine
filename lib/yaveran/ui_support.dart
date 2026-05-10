@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
 
 class UI_support {
   static final Degiskenler _degiskenler = Degiskenler();
@@ -60,7 +60,7 @@ class UI_support {
 
   static void changeImageAndEpigram() {
     // 20 saniye limit uygula (20000 ms)
-    if (!_shouldExecute('changeImageAndEpigram', durationMs: 16000)) return;
+    if (!_shouldExecute('changeImageAndEpigram', durationMs: 30000)) return;
 
     // Resim değiştir
     if (_degiskenler.listFotograflar.isNotEmpty) {

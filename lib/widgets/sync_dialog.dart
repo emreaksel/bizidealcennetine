@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../yaveran/Degiskenler.dart';
-import '../yaveran/app_theme.dart';
-import '../yaveran/MusicApiService.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/yaveran/app_theme.dart';
+import 'package:bizidealcennetine/services/MusicApiService.dart';
 
 class SyncDialog {
   static final MusicApiService _apiService = MusicApiService();

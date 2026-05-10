@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../yaveran/Degiskenler.dart';
-import '../yaveran/app_theme.dart';
-import '../yaveran/ui_support.dart';
-import '../yaveran/logic.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/yaveran/app_theme.dart';
+import 'package:bizidealcennetine/yaveran/ui_support.dart';
+import 'package:bizidealcennetine/services/arkaplanislemleri.dart';
 
 class CustomDialog extends StatelessWidget {
   final String icerik;

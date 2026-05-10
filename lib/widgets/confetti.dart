@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../yaveran/Degiskenler.dart';
-import '../yaveran/app_theme.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/yaveran/app_theme.dart';
 
 class HeartConfettiWidget extends StatefulWidget {
   final Widget child;
@@ -108,12 +108,7 @@ class _HeartConfettiWidgetState extends State<HeartConfettiWidget>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        GestureDetector(
-          onTapDown: (details) {
-            _startConfetti(details.localPosition);
-          },
-          child: widget.child,
-        ),
+        widget.child,
         if (_isAnimating && particles.isNotEmpty)
           AnimatedBuilder(
             animation: _animationController,

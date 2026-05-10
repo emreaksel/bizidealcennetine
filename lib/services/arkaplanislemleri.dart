@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'package:bizidealcennetine/services/MusicApiService.dart';
-import 'package:bizidealcennetine/services/log_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:just_audio/just_audio.dart';
@@ -10,7 +8,10 @@ import 'package:bizidealcennetine/services/Degiskenler.dart';
 import 'package:bizidealcennetine/services/HttpService.dart';
 import 'package:bizidealcennetine/services/JsonHelper.dart';
 import 'package:bizidealcennetine/yaveran/ui_support.dart';
-import '../services/audio/audio_service.dart' as app_audio;
+import 'package:bizidealcennetine/services/audio/audio_service.dart'
+    as app_audio;
+import 'package:bizidealcennetine/services/MusicApiService.dart';
+import 'package:bizidealcennetine/services/log_service.dart';
 
 final appLinks = AppLinks();
 

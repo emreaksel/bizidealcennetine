@@ -1,14 +1,14 @@
-import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/services/MusicApiService.dart';
+import 'package:bizidealcennetine/services/Notifier.dart';
 import 'package:flutter/material.dart';
 import '../widgets/sync_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:share_plus/share_plus.dart';
-import 'audio_service.dart';
-import 'Notifier.dart';
+import '../services/audio/audio_service.dart';
 import 'audio_video_progress_bar.dart';
 import 'dart:math' as math;
-import 'MusicApiService.dart';
 import 'ui_support.dart';
 import 'app_theme.dart';
 

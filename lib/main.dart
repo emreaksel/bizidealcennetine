@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
-import 'firebase_options.dart';
-import 'yaveran/Degiskenler.dart';
-import 'yaveran/logic.dart';
-import 'widgets/splash_screen.dart';
-import 'screens/main_screen.dart';
-import 'yaveran/log_service.dart';
+import 'package:bizidealcennetine/firebase_options.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/services/arkaplanislemleri.dart';
+import 'package:bizidealcennetine/widgets/splash_screen.dart';
+import 'package:bizidealcennetine/screens/main_screen.dart';
+import 'package:bizidealcennetine/services/log_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,10 +21,11 @@ void main() async {
 
   // Crashlytics'i yapılandır
   FlutterError.onError = (errorDetails) {
-    LogService().error("Flutter Hatası: ${errorDetails.exception}", tag: "System");
+    LogService()
+        .error("Flutter Hatası: ${errorDetails.exception}", tag: "System");
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
   };
-  
+
   // Platform tabanlı hataları yakala (Asenkron hatalar vb.)
   PlatformDispatcher.instance.onError = (error, stack) {
     LogService().error("Asenkron Hata: $error", tag: "System");

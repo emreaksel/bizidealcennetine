@@ -6,8 +6,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:uuid/uuid.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:bizidealcennetine/yaveran/Degiskenler.dart';
-import 'package:bizidealcennetine/yaveran/log_service.dart';
+import 'package:bizidealcennetine/services/Degiskenler.dart';
+import 'package:bizidealcennetine/services/log_service.dart';
 
 class MusicApiService {
   final storage = const FlutterSecureStorage();
