@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_service/audio_service.dart' as audio_svc;
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/services.dart';
 
 import 'package:bizidealcennetine/services/Degiskenler.dart';
 import 'package:bizidealcennetine/services/Notifier.dart';
@@ -30,6 +32,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final PlaylistManager _playlistManager = PlaylistManager();
   final ListenLogManager _logManager = ListenLogManager();
   final AudioSessionHandler _sessionHandler = AudioSessionHandler();
+  static const _nativeChannel = MethodChannel('com.ea.atesi_ask/audio_control');
 
   // Başlatma tamamlanana kadar operasyonları bekletir
   final Completer<void> _ready = Completer<void>();
@@ -52,7 +55,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _init();
     _logManager.loadPersistedLogs();
   }
-
+  @override
+  Future<void> onTaskRemoved() async {
+    LogService().info(
+        "onTaskRemoved() tetiklendi — Uygulama arka plandan kapatıldı.",
+        tag: "Audio");
+    // Kullanıcı uygulamayı arka plandan kaydırıp kapattığında servisi tamamen durdurur.
+    await stop();
+    await super.onTaskRemoved();
+  }
   // ══════════════════════════════════════════════════════════
   //  BAŞLATMA
   // ══════════════════════════════════════════════════════════
@@ -151,10 +162,18 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   // ══════════════════════════════════════════════════════════
 
   void _broadcastState(PlaybackEvent _) {
-    if (_isStopping) return;
+    if (_isStopping) {
+      LogService().info(
+          "_broadcastState: _isStopping true olduğu için yayın iptal edildi.",
+          tag: "Audio");
+      return;
+    }
 
     final playing = _player.playing;
     final procState = _toProcessingState(_player.processingState);
+
+    LogService().info("_broadcastState: playing=$playing, procState=$procState",
+        tag: "Audio");
 
     playbackState.add(playbackState.value.copyWith(
       controls: [
@@ -280,22 +299,64 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> stop() async {
+    LogService().info("stop() tetiklendi", tag: "Audio");
     _isStopping = true;
+
+    // ✅ YENİ: Devam eden tüm _playTrackInternal çağrılarını iptal et.
+    // _playTrackInternal içindeki "if (requestId != _activeRequestId) return;"
+    // koruması bu sayede devreye girer.
+    _activeRequestId++;
+
     _logManager.finalizeCurrentLog();
     _logManager.dispose();
 
-    // Bildirimi ve kuyruğu temizle
-    playbackState.add(playbackState.value.copyWith(
-      playing: false,
-      processingState: AudioProcessingState.idle,
-      controls: [],
-    ));
-    mediaItem.add(null);
-    queue.add([]);
-
+    LogService().info("1. Player durduruluyor...", tag: "Audio");
     await _player.stop();
+    LogService().info("1. Player durduruldu.", tag: "Audio");
 
-    // Uygulama durumunu tamamen sıfırla
+    LogService().info("2. Ses oturumu kapatılıyor...", tag: "Audio");
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(false);
+      LogService().info("2. Ses oturumu kapatıldı.", tag: "Audio");
+    } catch (e) {
+      LogService().error("2. Ses oturumu hatası: $e", tag: "Audio");
+    }
+
+    // ✅ DEĞİŞİKLİK: copyWith yerine tamamen yeni ve boş bir PlaybackState.
+    // copyWith önceki controls/systemActions kalıntılarını taşıyabilir.
+    // Temiz bir state Android'in stopForeground(true) tetiklemesini garantiler.
+    LogService()
+        .info("3. Medya bilgileri ve Idle state temizleniyor...", tag: "Audio");
+
+    // 1. HAMLE: Resmi, şarkı adını ve sanatçıyı Android MediaSession'dan anında sil.
+    // Bu sayede Xiaomi'nin ekranda tutunacak bir görseli kalmaz.
+    mediaItem.add(null);
+
+    // 2. HAMLE: Butonları ve durumu sıfırla.
+    playbackState.add(PlaybackState(
+      processingState: AudioProcessingState.idle,
+      playing: false,
+      controls: [], // Tüm medya butonlarını temizle
+      systemActions: const {}, // Kulaklık aksiyonlarını temizle
+    ));
+    LogService().info("3. Idle state tamamlandı.", tag: "Audio");
+
+    LogService().info("4. BaseAudioHandler.stop()...", tag: "Audio");
+    await super.stop();
+    LogService().info("4. BaseAudioHandler.stop() tamamlandı.", tag: "Audio");
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      // mediaItem.add(null) işlemini yukarı aldığımız için buradan silebilirsin,
+      // sadece queue temizliği kalsın.
+      queue.add([]);
+      LogService().info("5. queue temizlendi.", tag: "Audio");
+    } catch (e) {
+      LogService().warn("5. queue temizleme hatası: $e", tag: "Audio");
+    }
+
+    LogService().info("6. Global state temizleniyor...", tag: "Audio");
     Degiskenler.listeYuklendi = false;
     Degiskenler.parcaIndex = -1;
     Degiskenler.songListNotifier.value = [];
@@ -303,8 +364,16 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     AudioService.currentSongTitleNotifier.value = '...';
     AudioService.currentSongSubTitleNotifier.value = '...';
 
-    await super.stop();
-    LogService().info("Servis tamamen durduruldu ve sıfırlandı", tag: "Audio");
+    // ✅ FORCE CANCEL: Bazı Android cihazlarda bildirim asılı kalabiliyor.
+    try {
+      await _nativeChannel.invokeMethod('forceStopNotification');
+      LogService()
+          .info("7. Native bildirim kapatma sinyali gönderildi.", tag: "Audio");
+    } catch (e) {
+      LogService().warn("7. Native bildirim kapatma hatası: $e", tag: "Audio");
+    }
+
+    LogService().info("Servis tamamen durduruldu.", tag: "Audio");
   }
 
   @override
@@ -399,8 +468,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         id: siraNoStr,
         title: title,
         artist: artist,
-        artUri:
-            Uri.parse('${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg'),
+        artUri: Uri.parse(
+            '${Degiskenler.kaynakYolu}medya/atesiask/${Degiskenler.currentImageNotifier.value.isNotEmpty ? Degiskenler.currentImageNotifier.value : 'atesiask.jpg'}'),
         extras: {
           if (isGift) 'isApplink': true,
           'songData': song, // Geçiş anında kullanmak üzere ham veriyi sakla
@@ -411,16 +480,22 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       final source = _createAudioSource(song, item);
       final concatenatingSource = ConcatenatingAudioSource(children: [source]);
 
-      // Web tarafındaki çakışmayı önlemek için player'ı tamamen durdurup resetliyoruz
-      await _player.stop();
-      if (requestId != _activeRequestId) return;
-
-      // DEĞİŞİKLİK: Yeni liste başlatıldığı için takip indeksini sıfırla
+      // ✅ DEĞİŞİKLİK: _player.stop() KALDIRILDI.
+      // setAudioSource önceki kaynağı zaten durdurur/iptal eder.
+      // stop() çağrısı ProcessingState.idle yayarak bildirimi kapatıyordu.
       _lastProcessedIndex = 0;
 
+      // AudioSession'ı geçiş öncesi aktif tut
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+
       // 4. ÖNCE KAYNAĞI YÜKLE (İnternet hızına göre burası zaman alabilir)
-      await _player.setAudioSource(concatenatingSource,
-          initialIndex: 0, initialPosition: Duration.zero);
+      await _player.setAudioSource(
+        concatenatingSource,
+        initialIndex: 0,
+        initialPosition: Duration.zero,
+        preload: true, // ✅ Hemen buffer'lamaya başla
+      );
 
       // EĞER BU AWAIT BİTTİĞİNDE KULLANICI BAŞKA ŞARKIYA BASMIŞSA BURADAN SONRASINI ÇALIŞTIRMA!
       if (requestId != _activeRequestId) {
@@ -438,6 +513,17 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
       _logManager.startNewLog(siraNoStr);
       AudioService.playlistLoadingNotifier.value = false;
+
+      // ✅ YENİ: Stop süreci başlamışsa play() çağrısını engelle.
+      // _activeRequestId kontrolü yetmiyor çünkü o kontrol daha önce geçildi.
+      // Bu gate, foreground servisin stop sırasında yeniden aktive olmasını önler.
+      if (_isStopping) {
+        LogService().info(
+          "Stop süreci aktif, play() engellendi (Request ID: $requestId)",
+          tag: "Audio",
+        );
+        return;
+      }
 
       await _player.play();
 
@@ -529,8 +615,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         id: nextSong['sira_no'].toString(),
         title: title,
         artist: artist,
-        artUri:
-            Uri.parse('${Degiskenler.kaynakYolu}medya/atesiask/bahar11.jpg'),
+        artUri: Uri.parse(
+            '${Degiskenler.kaynakYolu}medya/atesiask/${Degiskenler.currentImageNotifier.value.isNotEmpty ? Degiskenler.currentImageNotifier.value : 'atesiask.jpg'}'),
         extras: {
           if (isGift) 'isApplink': true,
           'songData': nextSong,
@@ -638,10 +724,14 @@ class AudioService {
     await audio_svc.AudioService.init(
       builder: () => _handler!,
       config: const audio_svc.AudioServiceConfig(
-        androidNotificationChannelId: 'com.ea.bizidealcennetine.channel.audio',
+        androidNotificationChannelId: 'com.ea.atesi_ask.channel.audio',
         androidNotificationChannelName: 'Aşk Olsun',
-        androidNotificationOngoing: false,
+        // ✅ DEĞİŞTİ: true → false
+        // Pause'da servis öldürülmesin (yükleme sırasında player kısa pause'a geçebilir)
         androidStopForegroundOnPause: true,
+        // androidStopForegroundOnPause false olduğunda, bu değer zaten true etkisine sahiptir
+        // ve açıkça true set edilmesi hata (assertion) verebilir.
+        androidNotificationOngoing: true,
       ),
     );
 
