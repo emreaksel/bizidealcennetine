@@ -15,9 +15,13 @@ class AudioSessionHandler {
         _wasPlayingBeforeInterruption = player.playing;
         await player.pause();
       } else {
-        if (_wasPlayingBeforeInterruption && !_manuallyPaused) {
-          await Future.delayed(const Duration(seconds: 1));
-          // ✅ DEĞİŞİKLİK: Devam etmeden önce session'ı yeniden aktifleştir
+        // ✅ FIX: shouldResume kontrolü ekle (telefon araması bitti ama
+        // kullanıcı manuel durdurmuşsa çalma)
+        final shouldResume = event.type == AudioInterruptionType.pause ||
+            event.type == AudioInterruptionType.duck;
+
+        if (_wasPlayingBeforeInterruption && !_manuallyPaused && shouldResume) {
+          await Future.delayed(const Duration(milliseconds: 500));
           await session.setActive(true);
           await player.play();
         }

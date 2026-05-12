@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bizidealcennetine/yaveran/app_theme.dart';
@@ -72,6 +73,9 @@ class Degiskenler {
       }
     }
   }
+
+// Degiskenler class'ına veya global alana ekle
+  static Completer<void> linkKontrolCompleter = Completer<void>();
 
   List<dynamic> listSozler = [];
   List<dynamic> listDinle = [];

@@ -36,10 +36,10 @@ void main() async {
   // Bildirim çubuğunu gizle ve tam ekran moduna geç (Odaklanmayı artırmak için)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  runApp(MyApp());
-
   // Önce linkleri kontrol et (iOS cold start için kritik)
   await initUniLinks(handleLink);
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -54,6 +54,11 @@ class _MyAppState extends State<MyApp> {
     Degiskenler.showSplashNotifier.addListener(() {
       if (mounted) setState(() {});
     });
+
+    // ✅ Arkaplan işlemlerini uygulama başlar başlamaz (Splash ile paralel) başlat
+    if (!Degiskenler.hazirlaniyor && !Degiskenler.listeYuklendi) {
+      arkaplanIslemleri();
+    }
   }
 
   @override
@@ -64,14 +69,14 @@ class _MyAppState extends State<MyApp> {
         debugShowCheckedModeBanner: false,
         home: SplashScreenWidget(
           onComplete: () async {
-            // Hazırlık devam etmiyorsa VE liste henüz yüklenmediyse işlemleri başlat
+            // Güvenlik kontrolü: Eğer bir sebeple başlamamışsa burada tekrar dene
             if (!Degiskenler.hazirlaniyor && !Degiskenler.listeYuklendi) {
-              arkaplanIslemleri(); // await YOK — arka planda devam eder
+              arkaplanIslemleri();
             }
-            // Splash ekranını hemen kapat, işlemler arka planda sürsün
+            // Splash ekranını kapat, işlemler zaten arkada devam ediyor olacak
             Degiskenler.showSplashNotifier.value = false;
           },
-          displayDuration: const Duration(seconds: 5),
+          displayDuration: const Duration(seconds: 2),
           animationDuration: const Duration(milliseconds: 800),
         ),
       );

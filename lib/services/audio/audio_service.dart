@@ -47,6 +47,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   // Race Condition engelleme: Her oynatma isteği için benzersiz ID
   int _activeRequestId = 0;
 
+  // Rapid Skip Koruması
+  int _rapidSkipCount = 0;
+  Timer? _rapidSkipTimer;
+
   // ══════════════════════════════════════════════════════════
   //  CONSTRUCTOR
   // ══════════════════════════════════════════════════════════
@@ -161,7 +165,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   //  STATE BROADCASTING  →  OS bildirimi
   // ══════════════════════════════════════════════════════════
 
-  void _broadcastState(PlaybackEvent _) {
+  void _broadcastState([PlaybackEvent? _]) {
     if (_isStopping) {
       LogService().info(
           "_broadcastState: _isStopping true olduğu için yayın iptal edildi.",
@@ -171,6 +175,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     final playing = _player.playing;
     final procState = _toProcessingState(_player.processingState);
+    final currentIndex = _player.currentIndex ?? 0; // ← ekle
 
     LogService().info("_broadcastState: playing=$playing, procState=$procState",
         tag: "Audio");
@@ -195,7 +200,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       updatePosition: _player.position,
       bufferedPosition: _player.bufferedPosition ?? Duration.zero,
       speed: _player.speed,
-      queueIndex: 0,
+      queueIndex: currentIndex, // ← 0 yerine gerçek index
     ));
 
     // UI play butonunu güncelle
@@ -255,6 +260,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       return;
     }
 
+    // ✅ FIX: Doğrudan play — hiçbir ekstra koşul yok
+    // Namida'nın onPlayRaw() yaklaşımı
     await _player.play();
   }
 
@@ -382,11 +389,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> skipToNext() async {
     if (_shouldWakeSystem()) return;
-
-    // Web stabilite kuralı: Manuel geçişlerde her zaman _playTrackInternal kullan.
-    // Bu sayede RequestId devreye girer ve çakışmaları (race condition) önler.
     final next = _playlistManager.calculateNext();
-    if (next != null) await _playTrackInternal(next);
+    if (next != null) await _guardedPlayTrack(next);
   }
 
   @override
@@ -395,8 +399,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     final prev = _playlistManager.calculatePrevious();
     if (prev != null) {
       _playlistManager.rewindHistory();
-      // Geri giderken sliding window'u sıfırlamak için hard-load yapıyoruz
-      await _playTrackInternal(prev, isRewind: true);
+      await _guardedPlayTrack(prev, isRewind: true);
     }
   }
 
@@ -431,6 +434,31 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   //    6. Yeni log'u başlat
   //    7. Oynat + UI tetikle
   // ══════════════════════════════════════════════════════════
+
+  void _refreshNotification(MediaItem item) {
+    mediaItem.add(item); // önce
+    _broadcastState(); // hemen ardından
+  }
+
+  Future<void> _guardedPlayTrack(Map<String, dynamic> song,
+      {bool isRewind = false}) async {
+    _rapidSkipCount++;
+    _rapidSkipTimer?.cancel();
+
+    if (_rapidSkipCount >= 3) {
+      // Hızlı geçiş — geçici durdur, buffer temizlensin
+      await _player.pause();
+      _rapidSkipTimer = Timer(const Duration(milliseconds: 300), () async {
+        _rapidSkipCount = 0;
+        await _playTrackInternal(song, isRewind: isRewind);
+      });
+    } else {
+      _rapidSkipTimer = Timer(const Duration(milliseconds: 100), () async {
+        _rapidSkipCount = 0;
+      });
+      await _playTrackInternal(song, isRewind: isRewind);
+    }
+  }
 
   Future<void> _playTrackInternal(
     Map<String, dynamic> song, {
@@ -476,6 +504,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         },
       );
 
+      // ✅ FIX: mediaItem'ı ÖNCE güncelle — araç BT anında görür
+      _refreshNotification(item);
+      AudioService.setCurrentTrackData(siraNoStr, title, artist, isGift);
+
       // 3. Ses kaynağını ve "Sliding Window" için ConcatenatingAudioSource'u hazırla
       final source = _createAudioSource(song, item);
       final concatenatingSource = ConcatenatingAudioSource(children: [source]);
@@ -485,9 +517,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       // stop() çağrısı ProcessingState.idle yayarak bildirimi kapatıyordu.
       _lastProcessedIndex = 0;
 
-      // AudioSession'ı geçiş öncesi aktif tut
-      final session = await AudioSession.instance;
-      await session.setActive(true);
+      // ✅ FIX: setActive(false) ÇAĞIRMA — focus boşluğu yaratma
+      // Session zaten aktif, geçiş boyunca aktif kalmalı
 
       // 4. ÖNCE KAYNAĞI YÜKLE (İnternet hızına göre burası zaman alabilir)
       await _player.setAudioSource(
@@ -508,8 +539,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       // 5. YÜKLEME BAŞARILIYSA DURUMU VE UI'I GÜNCELLE
       if (!isRewind) _playlistManager.recordNavigation(song);
       await updateQueue([item]);
-      mediaItem.add(item);
-      AudioService.setCurrentTrackData(siraNoStr, title, artist, isGift);
 
       _logManager.startNewLog(siraNoStr);
       AudioService.playlistLoadingNotifier.value = false;
@@ -726,12 +755,6 @@ class AudioService {
       config: const audio_svc.AudioServiceConfig(
         androidNotificationChannelId: 'com.ea.atesi_ask.channel.audio',
         androidNotificationChannelName: 'Aşk Olsun',
-        // ✅ DEĞİŞTİ: true → false
-        // Pause'da servis öldürülmesin (yükleme sırasında player kısa pause'a geçebilir)
-        androidStopForegroundOnPause: true,
-        // androidStopForegroundOnPause false olduğunda, bu değer zaten true etkisine sahiptir
-        // ve açıkça true set edilmesi hata (assertion) verebilir.
-        androidNotificationOngoing: true,
       ),
     );
 

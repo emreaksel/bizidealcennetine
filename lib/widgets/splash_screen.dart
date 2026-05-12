@@ -9,7 +9,7 @@ class SplashScreenWidget extends StatefulWidget {
   const SplashScreenWidget({
     Key? key,
     this.onComplete,
-    this.displayDuration = const Duration(seconds: 5),
+    this.displayDuration = const Duration(seconds: 2),
     this.animationDuration = const Duration(milliseconds: 800),
   }) : super(key: key);
 

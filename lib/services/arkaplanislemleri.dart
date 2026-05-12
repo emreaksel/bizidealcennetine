@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:audio_service/audio_service.dart' show MediaItem;
 import 'package:app_links/app_links.dart';
 import 'package:bizidealcennetine/services/Degiskenler.dart';
 import 'package:bizidealcennetine/services/HttpService.dart';
@@ -20,7 +18,16 @@ String? _lastHandledLink;
 DateTime? _lastHandleTime;
 
 Future<void> arkaplanIslemleri() async {
-  LogService().info("Arkaplan işlemleri başlatılıyor...", tag: "Logic");
+  LogService().info("Arkaplan işlemleri başlıyor, link kontrolü bekleniyor...",
+      tag: "Logic");
+
+  // Burası 'complete()' komutu gelene kadar akışı durdurur (ama uygulamayı dondurmaz)
+  await Degiskenler.linkKontrolCompleter.future;
+
+  // Artık link kontrolü bitti, bekleyen bir hediye varsa 'Degiskenler' içine yazıldı.
+  // Gönül rahatlığıyla veri çekmeye devam edebiliriz.
+  LogService()
+      .info("Link kontrolü tamamlandı, veriler çekiliyor...", tag: "Logic");
   Degiskenler.hazirlaniyor = true;
 
   // ✅ YENİ: Splash kapandığında loader'ın gözükmesi için bu notifier'ı aktif et
@@ -136,7 +143,7 @@ List<dynamic> _preparePlaylistData(List<dynamic> data) {
 
 Future<void> initUniLinks(Function(String) handleLinkCallback) async {
   try {
-    // iOS cold start durumunda native bridge'in hazır olması için kısa bir süre bekliyoruz
+    // iOS için senin eklediğin o kritik bekleme
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       await Future.delayed(const Duration(milliseconds: 500));
     }
@@ -149,6 +156,7 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
       handleLinkCallback(initialLink.toString());
     }
 
+    // Yeni gelen linkleri dinlemeye devam et
     appLinks.uriLinkStream.listen((Uri? uri) {
       if (uri != null) {
         LogService().info("Yeni link alındı: $uri", tag: "Link");
@@ -156,7 +164,14 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
       }
     });
   } catch (e) {
-    print("Error in initUniLinks: $e");
+    LogService().error("Link yakalama hatası: $e", tag: "Link");
+  } finally {
+    // 🚩 İŞTE BURASI KRİTİK:
+    // Link gelse de gelmese de, hata olsa da olmasa da
+    // "Link kontrol aşaması bitti" diyoruz.
+    if (!Degiskenler.linkKontrolCompleter.isCompleted) {
+      Degiskenler.linkKontrolCompleter.complete();
+    }
   }
 }
 
