@@ -35,7 +35,7 @@ class PlayButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ButtonState>(
-      valueListenable: AudioService.playButtonNotifier,
+      valueListenable: AppAudioService.playButtonNotifier,
       builder: (_, value, __) {
         final theme = Degiskenler.currentThemeNotifier.value;
         switch (value) {
@@ -57,7 +57,7 @@ class PlayButton extends StatelessWidget {
                 height: UISize.iconSize(context) * 0.8,
               ),
               onPressed: () {
-                AudioService.play();
+                AppAudioService.play();
               },
             );
           case ButtonState.playing:
@@ -68,7 +68,7 @@ class PlayButton extends StatelessWidget {
                 height: UISize.iconSize(context) * 0.8,
               ),
               onPressed: () {
-                AudioService.pause();
+                AppAudioService.pause();
               },
             );
         }
@@ -81,7 +81,7 @@ class CurrentSongTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
-      valueListenable: AudioService.currentSongTitleNotifier,
+      valueListenable: AppAudioService.currentSongTitleNotifier,
       builder: (_, title, __) {
         return ValueListenableBuilder<AppTheme>(
           valueListenable: Degiskenler.currentThemeNotifier,
@@ -110,7 +110,7 @@ class CurrentSongSubTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
-      valueListenable: AudioService.currentSongSubTitleNotifier,
+      valueListenable: AppAudioService.currentSongSubTitleNotifier,
       builder: (_, title, __) {
         return ValueListenableBuilder<AppTheme>(
           valueListenable: Degiskenler.currentThemeNotifier,
@@ -144,7 +144,7 @@ class SeekBar extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 19.0),
       // Kenarlara 16 piksellik padding ekleyin
       child: ValueListenableBuilder2<ProgressBarState, AppTheme>(
-        first: AudioService.progressNotifier,
+        first: AppAudioService.progressNotifier,
         second: Degiskenler.currentThemeNotifier,
         builder: (context, value, theme, _) {
           return ProgressBar(
@@ -152,7 +152,7 @@ class SeekBar extends StatelessWidget {
             buffered: value.buffered,
             total: value.total,
             onSeek: (duration) {
-              AudioService.seek(duration);
+              AppAudioService.seek(duration);
             },
             progressBarColor: theme.accentColor,
             baseBarColor: theme.textColor.withOpacity(0.12),
@@ -179,35 +179,20 @@ class SeekBar extends StatelessWidget {
 class RepeatButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<RepeatState>(
-      valueListenable: AudioService.repeatButtonNotifier,
+    return ValueListenableBuilder<ShuffleRepeatState>(
+      valueListenable: AppAudioService.shuffleRepeatNotifier,
       builder: (context, value, child) {
-        switch (value) {
-          case RepeatState.off:
-            return IconButton(
-                icon: SvgPicture.asset(
-                  'assets/icons/shuffle.svg',
-                  width: UISize.iconSize(context),
-                  height: UISize.iconSize(context),
-                  //color: Colors.red, // İstenilen rengi belirtin
-                ),
-                iconSize: UISize.iconSize(context),
-                onPressed: () {
-                  AudioService.repeat();
-                });
-          case RepeatState.on:
-            return IconButton(
-                icon: SvgPicture.asset(
-                  'assets/icons/repeat.svg',
-                  width: UISize.iconSize(context),
-                  height: UISize.iconSize(context),
-                  //color: Colors.red, // İstenilen rengi belirtin
-                ),
-                iconSize: UISize.iconSize(context),
-                onPressed: () {
-                  AudioService.repeat();
-                });
-        }
+        final isShuffle = value == ShuffleRepeatState.shuffle;
+        return IconButton(
+            icon: SvgPicture.asset(
+              isShuffle ? 'assets/icons/shuffle.svg' : 'assets/icons/repeat.svg',
+              width: UISize.iconSize(context),
+              height: UISize.iconSize(context),
+            ),
+            iconSize: UISize.iconSize(context),
+            onPressed: () {
+              AppAudioService.toggleShuffleRepeat();
+            });
       },
     );
   }
@@ -217,7 +202,7 @@ class PreviousSongButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ButtonState>(
-      valueListenable: AudioService.playButtonNotifier,
+      valueListenable: AppAudioService.playButtonNotifier,
       builder: (_, value, __) {
         return IconButton(
             icon: SvgPicture.asset(
@@ -235,7 +220,7 @@ class PreviousSongButton extends StatelessWidget {
             onPressed: value == ButtonState.loading
                 ? null
                 : () {
-                    AudioService.previous();
+                    AppAudioService.previous();
                   });
       },
     );
@@ -246,7 +231,7 @@ class NextSongButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ButtonState>(
-      valueListenable: AudioService.playButtonNotifier,
+      valueListenable: AppAudioService.playButtonNotifier,
       builder: (_, value, __) {
         return IconButton(
             icon: SvgPicture.asset(
@@ -264,7 +249,7 @@ class NextSongButton extends StatelessWidget {
             onPressed: value == ButtonState.loading
                 ? null
                 : () {
-                    AudioService.next();
+                    AppAudioService.next();
                   });
       },
     );
@@ -480,7 +465,7 @@ class _ShareButtonState extends State<ShareButton> {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: AudioService.isShareableNotifier,
+      valueListenable: AppAudioService.isShareableNotifier,
       builder: (context, isShareable, _) {
         return Visibility(
           visible: isShareable,
@@ -565,12 +550,12 @@ class _LikeButtonState extends State<LikeButton> {
   void initState() {
     super.initState();
     _checkLikeStatus();
-    AudioService.currentSongTitleNotifier.addListener(_checkLikeStatus);
+    AppAudioService.currentSongTitleNotifier.addListener(_checkLikeStatus);
   }
 
   @override
   void dispose() {
-    AudioService.currentSongTitleNotifier.removeListener(_checkLikeStatus);
+    AppAudioService.currentSongTitleNotifier.removeListener(_checkLikeStatus);
     super.dispose();
   }
 
@@ -759,7 +744,8 @@ class AudioControlButtons extends StatelessWidget {
                   children: [
                     LayoutBuilder(builder: (context, constraints) {
                       return ValueListenableBuilder<String>(
-                        valueListenable: AudioService.currentSongTitleNotifier,
+                        valueListenable:
+                            AppAudioService.currentSongTitleNotifier,
                         builder: (context, title, _) {
                           final fontSize = UISize.fontSize(context);
                           final painter = TextPainter(

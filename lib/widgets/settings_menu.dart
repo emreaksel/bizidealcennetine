@@ -73,7 +73,7 @@ class SettingsMenu extends StatelessWidget {
                 title:
                     Text("10 Dakika", style: TextStyle(color: theme.textColor)),
                 onTap: () {
-                  AudioService.startSleepTimer(10);
+                  AppAudioService.startSleepTimer(10);
                   Navigator.pop(context);
                 },
               ),
@@ -81,7 +81,7 @@ class SettingsMenu extends StatelessWidget {
                 title:
                     Text("20 Dakika", style: TextStyle(color: theme.textColor)),
                 onTap: () {
-                  AudioService.startSleepTimer(20);
+                  AppAudioService.startSleepTimer(20);
                   Navigator.pop(context);
                 },
               ),
@@ -89,7 +89,7 @@ class SettingsMenu extends StatelessWidget {
                 title:
                     Text("30 Dakika", style: TextStyle(color: theme.textColor)),
                 onTap: () {
-                  AudioService.startSleepTimer(30);
+                  AppAudioService.startSleepTimer(30);
                   Navigator.pop(context);
                 },
               ),
@@ -132,7 +132,7 @@ class SettingsMenu extends StatelessWidget {
                       onPressed: () {
                         final val = int.tryParse(customTimeController.text);
                         if (val != null && val > 0) {
-                          AudioService.startSleepTimer(val);
+                          AppAudioService.startSleepTimer(val);
                           Navigator.pop(context);
                         }
                       },
@@ -446,7 +446,7 @@ class SettingsMenu extends StatelessWidget {
                 const SizedBox(height: 32),
                 // Volume Section
                 ValueListenableBuilder<double>(
-                  valueListenable: AudioService.volumeNotifier,
+                  valueListenable: AppAudioService.volumeNotifier,
                   builder: (context, volume, _) {
                     return _buildSettingSection(
                       theme,
@@ -466,7 +466,7 @@ class SettingsMenu extends StatelessWidget {
                                           : Icons.volume_up_rounded,
                                   color: theme.accentColor,
                                 ),
-                                onPressed: () => AudioService.toggleMute(),
+                                onPressed: () => AppAudioService.toggleMute(),
                               ),
                               Expanded(
                                 child: SliderTheme(
@@ -488,7 +488,7 @@ class SettingsMenu extends StatelessWidget {
                                     min: 0,
                                     max: 1,
                                     onChanged: (val) =>
-                                        AudioService.setVolume(val),
+                                        AppAudioService.setVolume(val),
                                   ),
                                 ),
                               ),
@@ -546,7 +546,8 @@ class SettingsMenu extends StatelessWidget {
                               ),
                             ),
                             IconButton(
-                              onPressed: () => AudioService.cancelSleepTimer(),
+                              onPressed: () =>
+                                  AppAudioService.cancelSleepTimer(),
                               icon: const Icon(Icons.cancel_outlined,
                                   color: Colors.redAccent, size: 20),
                               padding:

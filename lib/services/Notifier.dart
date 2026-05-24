@@ -11,15 +11,18 @@ class PlaylistLoadingNotifier extends ValueNotifier<bool> {
   PlaylistLoadingNotifier() : super(false);
 }
 
-class RepeatButtonNotifier extends ValueNotifier<RepeatState> {
-  RepeatButtonNotifier() : super(_initialValue);
-  static const _initialValue = RepeatState.off;
+class ShuffleRepeatNotifier extends ValueNotifier<ShuffleRepeatState> {
+  ShuffleRepeatNotifier() : super(_initialValue);
+  static const _initialValue = ShuffleRepeatState.shuffle;
+
   void nextState() {
-    final next = (value.index + 1) % RepeatState.values.length;
-    value = RepeatState.values[next];
+    value = value == ShuffleRepeatState.shuffle
+        ? ShuffleRepeatState.repeat
+        : ShuffleRepeatState.shuffle;
   }
 }
-enum RepeatState {  off, on }
+
+enum ShuffleRepeatState { shuffle, repeat }
 
 class ProgressNotifier extends ValueNotifier<ProgressBarState> {
   ProgressNotifier() : super(_initialValue);

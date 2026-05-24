@@ -17,14 +17,14 @@ class SleepTimerManager {
       remaining--;
       Degiskenler.sleepTimerRemainingNotifier.value = remaining;
       if (remaining <= 0) {
-        AudioService.pause();
+        AppAudioService.pause();
         cancel();
       }
     });
 
     // Geri sayım hata yapsa bile ana zamanlayıcı garantiyle çalışır
     _sleepTimer = Timer(Duration(minutes: minutes), () {
-      AudioService.pause();
+      AppAudioService.pause();
       cancel();
     });
   }

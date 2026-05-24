@@ -235,15 +235,15 @@ class _ListeWidgetState extends State<ListeWidget>
                           FocusManager.instance.primaryFocus?.unfocus();
 
                           if (isMainList) {
-                            AudioService.switchToMainList();
+                            AppAudioService.switchToMainList();
                           } else {
-                            AudioService.switchToDokunanlar(songList);
+                            AppAudioService.switchToDokunanlar(songList);
                           }
 
                           final siraNo =
                               int.tryParse(song['sira_no'].toString()) ?? -1;
                           if (siraNo != -1) {
-                            AudioService.playSong(siraNo);
+                            AppAudioService.playSong(siraNo);
                           }
 
                           UI_support.ekranboyut_ana(0);

@@ -24,56 +24,60 @@ Future<void> arkaplanIslemleri() async {
   // Burası 'complete()' komutu gelene kadar akışı durdurur (ama uygulamayı dondurmaz)
   await Degiskenler.linkKontrolCompleter.future;
 
-  // Artık link kontrolü bitti, bekleyen bir hediye varsa 'Degiskenler' içine yazıldı.
-  // Gönül rahatlığıyla veri çekmeye devam edebiliriz.
-  LogService()
-      .info("Link kontrolü tamamlandı, veriler çekiliyor...", tag: "Logic");
-  Degiskenler.hazirlaniyor = true;
-
   // ✅ YENİ: Splash kapandığında loader'ın gözükmesi için bu notifier'ı aktif et
-  app_audio.AudioService.playlistLoadingNotifier.value = true;
-
-  await Degiskenler.loadTheme();
+  app_audio.AppAudioService.playlistLoadingNotifier.value = true;
 
   try {
-    LogService().info("Ses servisi başlatılıyor...", tag: "Logic");
-    await app_audio.AudioService.init();
-    await app_audio.AudioService.loadVolume();
-  } catch (e) {
-    print("Error initializing AudioService: $e");
-  }
+    LogService()
+        .info("Link kontrolü tamamlandı, veriler çekiliyor...", tag: "Logic");
+    Degiskenler.hazirlaniyor = true;
 
-  // Tek bir istek ile tüm verileri alıyoruz
-  try {
-    final combinedData = await MusicApiService().fetchAtesiAskSub();
-    if (combinedData.containsKey("isaretler")) {
-      final isaretler = combinedData["isaretler"];
+    await Degiskenler.loadTheme();
 
-      // 1. Menba İşlemleri
-      if (isaretler.containsKey("menba")) {
-        processMenbaData(isaretler["menba"]);
-      }
+    try {
+      LogService().info("Ses servisi başlatılıyor...", tag: "Logic");
+      await app_audio.AppAudioService.init();
+      await app_audio.AppAudioService.loadVolume();
 
-      // 2. Fotoğraf İşlemleri
-      if (isaretler.containsKey("resimler")) {
-        processImagesData(isaretler["resimler"]);
-      }
-
-      // 3. Söz İşlemleri
-      if (isaretler.containsKey("sozler")) {
-        processSozlerData(isaretler["sozler"]);
-      }
+      // SoLoud servisini başlatıyoruz
+      //await SoLoudAudioService().init();
+    } catch (e) {
+      print("Error initializing AudioService: $e");
     }
-  } catch (e) {
-    print("Combined fetch error: $e");
-    // Hata durumunda eski usul devam etsin (yedek plan)
-    await fetchData_jsonMenba("${Degiskenler.kaynakYolu}kaynak/menba.json");
-    fetchData_jsonFotograflar("${Degiskenler.kaynakYolu}medya/images.json");
-    fetchData_jsonSozler("${Degiskenler.kaynakYolu}kaynak/sozler.json");
-  }
 
-  Degiskenler.hazirlaniyor = false;
-  MusicApiService().syncInitialStatus();
+    // Tek bir istek ile tüm verileri alıyoruz
+    try {
+      final combinedData = await MusicApiService().fetchAtesiAskSub();
+      if (combinedData.containsKey("isaretler")) {
+        final isaretler = combinedData["isaretler"];
+
+        // 1. Menba İşlemleri
+        if (isaretler.containsKey("menba")) {
+          processMenbaData(isaretler["menba"]);
+        }
+
+        // 2. Fotoğraf İşlemleri
+        if (isaretler.containsKey("resimler")) {
+          processImagesData(isaretler["resimler"]);
+        }
+
+        // 3. Söz İşlemleri
+        if (isaretler.containsKey("sozler")) {
+          processSozlerData(isaretler["sozler"]);
+        }
+      }
+    } catch (e) {
+      print("Combined fetch error: $e");
+      // Hata durumunda eski usul devam etsin (yedek plan)
+      await fetchData_jsonMenba("${Degiskenler.kaynakYolu}kaynak/menba.json");
+      fetchData_jsonFotograflar("${Degiskenler.kaynakYolu}medya/images.json");
+      fetchData_jsonSozler("${Degiskenler.kaynakYolu}kaynak/sozler.json");
+    }
+  } finally {
+    Degiskenler.hazirlaniyor = false;
+    app_audio.AppAudioService.playlistLoadingNotifier.value = false;
+    MusicApiService().syncInitialStatus();
+  }
 }
 
 void processMenbaData(Map<String, dynamic> jsonData) {
@@ -127,9 +131,13 @@ Future<void> setPlaylist(data, {bool playNow = true}) async {
   degiskenler.listDinle = reversedData;
   Degiskenler.songListNotifier.value = reversedData;
 
-  await app_audio.AudioService.setMainList(reversedData, playNow: playNow);
-
-  print("Playlist set successfully");
+  try {
+    await app_audio.AppAudioService.setMainList(reversedData, playNow: playNow);
+    LogService()
+        .info("Playlist set edildi ${reversedData.length} parça", tag: "Logic");
+  } catch (e) {
+    LogService().error("Playlist set edilirken hata: $e", tag: "Logic");
+  }
 }
 
 /// Compute izolat'ında çalışır — tersine çevirir ve URL'siz öğeleri filtreler.
@@ -211,7 +219,7 @@ void handleLink(String? link) {
         if (linkPart.isNotEmpty && idPart.isNotEmpty) {
           if (Degiskenler.listeYuklendi) {
             LogService().info("Liste yüklü, doğrudan oynatılıyor", tag: "Link");
-            app_audio.AudioService.playGiftTrack(linkPart, idPart);
+            app_audio.AppAudioService.playGiftTrack(linkPart, idPart);
           } else {
             LogService().info(
                 "Liste henüz yüklenmedi, hediye sıraya alındı ve sistem uyandırılıyor",
@@ -259,7 +267,7 @@ Future<void> fetchData_jsonDinlemeListesi(String url, String link,
   } catch (error) {
     print("Hata oluştu: $error");
     // Hata durumunda loader'ı kapat ki UI asılı kalmasın
-    app_audio.AudioService.playlistLoadingNotifier.value = false;
+    app_audio.AppAudioService.playlistLoadingNotifier.value = false;
   }
 }
 

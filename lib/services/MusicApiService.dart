@@ -109,7 +109,7 @@ class MusicApiService {
         Uri.parse('$baseUrl/api/music/auth/exchange-code'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'code': pairingCode}),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         LogService().info("Eşleştirme başarılı", tag: "API");
@@ -152,7 +152,7 @@ class MusicApiService {
         Uri.parse('$baseUrl/api/music/like'),
         headers: headers,
         body: jsonEncode({'musicId': musicId}),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -176,7 +176,7 @@ class MusicApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/api/music/like/status/$musicId'),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -197,7 +197,7 @@ class MusicApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/api/music/likes/count/$musicId'),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -221,7 +221,7 @@ class MusicApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/api/music/likes/me?limit=$limit'),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -241,7 +241,7 @@ class MusicApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/api/music/likes/all?limit=$limit'),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -290,7 +290,7 @@ class MusicApiService {
         Uri.parse('$baseUrl/api/music/listen'),
         headers: headers,
         body: jsonEncode(payload),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('Dinleme logu başarılı ($musicId - ${listenDuration}s)');
@@ -315,7 +315,7 @@ class MusicApiService {
         Uri.parse('$baseUrl/api/atesiasksub'),
         headers: headers,
         body: jsonEncode({}),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         LogService().info("Ateşi Aşk verileri çekildi", tag: "API");
@@ -339,7 +339,7 @@ class MusicApiService {
         Uri.parse('$baseUrl/api/atesiask'),
         headers: headers,
         body: jsonEncode({'link': link, 'id': id}),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -385,7 +385,7 @@ class MusicApiService {
           'message': enrichedMessage,
           'reason': reason,
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return true;

@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'package:bizidealcennetine/screens/akanyazi.dart';
+import 'package:bizidealcennetine/services/log_service.dart';
 import 'package:flutter/material.dart';
 import '../services/Degiskenler.dart';
 import '../yaveran/widgets.dart';
@@ -98,17 +100,23 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                 // İki farklı yükleme durumunu dinleyerek SpiritualLoader'ı anında tetikliyoruz.
                 ValueListenableBuilder<bool>(
                   // 1. DURUM: Playlist'in hazırlanma durumu (manuel tetikleme).
-                  valueListenable: AudioService.playlistLoadingNotifier,
+                  valueListenable: AppAudioService.playlistLoadingNotifier,
                   builder: (context, isPlaylistLoading, child) {
                     return ValueListenableBuilder<ButtonState>(
                       // 2. DURUM: Player'ın kendi yükleme/buffer durumu.
-                      valueListenable: AudioService.playButtonNotifier,
+                      valueListenable: AppAudioService.playButtonNotifier,
                       builder: (context, buttonState, child) {
                         // İki durumdan herhangi biri "yükleniyor" ise loader'ı göster.
                         final bool isPlayerLoading =
                             (buttonState == ButtonState.loading);
                         final bool shouldShowLoader =
                             isPlaylistLoading || isPlayerLoading;
+
+                        if (shouldShowLoader) {
+                          LogService().debug(
+                              "Loader durumu: Playlist=$isPlaylistLoading, Player=$isPlayerLoading",
+                              tag: "UI");
+                        }
 
                         return SpiritualLoader(
                           isLoading: shouldShowLoader,

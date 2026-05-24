@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:bizidealcennetine/firebase_options.dart';
 import 'package:bizidealcennetine/services/Degiskenler.dart';
 import 'package:bizidealcennetine/services/arkaplanislemleri.dart';
@@ -12,6 +13,7 @@ import 'package:bizidealcennetine/services/log_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   LogService().info("Uygulama başlatılıyor...", tag: "System");
 
   // Firebase'i başlat

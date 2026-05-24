@@ -36,8 +36,10 @@ dependencies:
   font_awesome_flutter: ^10.5.0
   google_fonts: ^5.1.0
   http: ^1.1.0
-  #just_audio: ^0.9.46
-  just_audio: ^0.10.5
+  # just_audio yerine media_kit kütüphanesine geçildi
+  media_kit: ^1.2.6
+  media_kit_libs_ios_audio: ^1.1.4
+  media_kit_libs_android_audio: ^1.3.8
   audio_service: ^0.18.18
   audio_session: ^0.1.25
   provider: ^6.0.5
@@ -58,6 +60,8 @@ dependencies:
   package_info_plus: ^9.0.1
   firebase_core: ^4.7.0
   firebase_crashlytics: ^5.2.0
+  rxdart: ^0.28.0
+
   
 dev_dependencies:
   flutter_test:

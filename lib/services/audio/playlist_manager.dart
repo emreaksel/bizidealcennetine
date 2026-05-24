@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:bizidealcennetine/services/log_service.dart';
 
 /// Playlist navigasyonunu, shuffle ve geçmiş (geri butonu) mantığını yönetir.
 /// ConcatenatingAudioSource'a bağımlı değildir; ham JSON listeleriyle çalışır.
@@ -98,6 +99,7 @@ class PlaylistManager {
 
   /// Şu anki parçayı geçmişe ekler ve yeni parçayı current yapar.
   void recordNavigation(Map<String, dynamic> toSong) {
+    LogService().info("[PlaylistManager] recordNavigation çağrıldı: toSong=${toSong['sira_no']} - ${toSong['parca_adi']}, mevcut currentSiraNo=$currentSiraNo", tag: "Audio");
     if (currentSiraNo != -1) {
       _history.add(currentSiraNo);
       if (_history.length > _maxHistory) _history.removeAt(0);
@@ -105,35 +107,72 @@ class PlaylistManager {
     currentSiraNo = int.tryParse(toSong['sira_no'].toString()) ?? -1;
     _playedSet.add(currentSiraNo);
     isGiftTrackPlaying = toSong['_isGift'] == true;
+    LogService().info("[PlaylistManager] recordNavigation bitti: yeni currentSiraNo=$currentSiraNo, playedSet.length=${_playedSet.length}", tag: "Audio");
   }
 
   /// Sonraki parçayı hesaplar (state değiştirmez).
-  Map<String, dynamic>? calculateNext() {
+  /// [referenceSiraNo] verilirse o parçadan sonrakini bulur, verilmezse [currentSiraNo]'yu baz alır.
+  Map<String, dynamic>? calculateNext({int? referenceSiraNo}) {
+    LogService().info("[PlaylistManager] calculateNext çağrıldı: referenceSiraNo=$referenceSiraNo, currentSiraNo=$currentSiraNo", tag: "Audio");
     final list = activeList;
-    if (list.isEmpty) return null;
+    if (list.isEmpty) {
+      LogService().warn("[PlaylistManager] calculateNext: activeList boş!", tag: "Audio");
+      return null;
+    }
 
-    if (isRepeatOne) return findBySiraNo(currentSiraNo);
+    // Referans belirtilmemişse mevcut parçayı kullan
+    final ref = referenceSiraNo ?? currentSiraNo;
+
+    // Tek parça tekrarı aktifse ve manuel bir referans istenmemişse aynı parçayı dön
+    if (isRepeatOne && referenceSiraNo == null) {
+      LogService().info("[PlaylistManager] calculateNext: isRepeatOne aktif, aynı parça dönülüyor. ref=$ref", tag: "Audio");
+      return findBySiraNo(ref);
+    }
 
     if (isShuffleEnabled) {
+      // Çalınmamış parçaları bul (mevcut parça hariç)
       final unplayed = list.where((e) {
         final sn = int.tryParse(e['sira_no'].toString()) ?? -1;
-        return !_playedSet.contains(sn);
+        return !_playedSet.contains(sn) && sn != ref;
       }).toList();
 
+      LogService().info("[PlaylistManager] calculateNext (Shuffle): unplayed.length=${unplayed.length}, playedSet.length=${_playedSet.length}", tag: "Audio");
+
       if (unplayed.isEmpty) {
-        // Tüm liste çalındı — seti sıfırla ve tamamını karıştır
+        // Tüm liste bittiyse seti sıfırla (mevcut parçayı hariç tutarak)
         _playedSet.clear();
-        final all = List<dynamic>.from(list)..shuffle();
-        return Map<String, dynamic>.from(all.first as Map);
+        _playedSet.add(ref);
+
+        final others = list.where((e) {
+          final sn = int.tryParse(e['sira_no'].toString()) ?? -1;
+          return sn != ref;
+        }).toList();
+
+        if (others.isEmpty) {
+          LogService().info("[PlaylistManager] calculateNext (Shuffle): Liste 1 elemanlı, aynısı dönülüyor.", tag: "Audio");
+          return findBySiraNo(ref); // Liste 1 elemanlıysa mecburen aynısı
+        }
+
+        final randomIdx = Random().nextInt(others.length);
+        final result = Map<String, dynamic>.from(others[randomIdx] as Map);
+        LogService().info("[PlaylistManager] calculateNext (Shuffle) Reset sonrası SONUÇ: ${result['sira_no']} - ${result['parca_adi']}", tag: "Audio");
+        return result;
       }
-      unplayed.shuffle();
-      return Map<String, dynamic>.from(unplayed.first as Map);
+
+      final randomIdx = Random().nextInt(unplayed.length);
+      final result = Map<String, dynamic>.from(unplayed[randomIdx] as Map);
+      LogService().info("[PlaylistManager] calculateNext (Shuffle) SONUÇ: ${result['sira_no']} - ${result['parca_adi']}", tag: "Audio");
+      return result;
     } else {
-      // Sıralı
-      final idx = list.indexWhere(
-          (e) => e['sira_no'].toString() == currentSiraNo.toString());
+      // Sıralı: Listede bul ve bir sonrakini al
+      final idx =
+          list.indexWhere((e) => e['sira_no'].toString() == ref.toString());
+
+      // Eğer bulunamazsa (-1), nextIdx 0 olur (listenin başı)
       final nextIdx = (idx + 1) % list.length;
-      return Map<String, dynamic>.from(list[nextIdx] as Map);
+      final result = Map<String, dynamic>.from(list[nextIdx] as Map);
+      LogService().info("[PlaylistManager] calculateNext (Sıralı) SONUÇ: ${result['sira_no']} - ${result['parca_adi']}, idx=$idx, nextIdx=$nextIdx", tag: "Audio");
+      return result;
     }
   }
 
