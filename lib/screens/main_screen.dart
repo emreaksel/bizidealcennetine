@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:bizidealcennetine/screens/akanyazi.dart';
 import 'package:bizidealcennetine/services/log_service.dart';
+import 'package:bizidealcennetine/widgets/kus_hicret.dart';
 import 'package:flutter/material.dart';
 import '../services/Degiskenler.dart';
 import '../yaveran/widgets.dart';
@@ -13,7 +14,6 @@ import '../widgets/settings_menu.dart';
 import 'listeler_ekrani.dart';
 import 'diger_listeler_ekrani.dart';
 import '../yaveran/app_theme.dart';
-import '../widgets/kus_kelebek.dart';
 
 class MainScreen extends StatelessWidget {
   @override
@@ -52,8 +52,8 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                           children: [
                             GestureDetector(
                               onTapDown: (details) {
-                                if (math.Random().nextDouble() < 0.01) {
-                                  Degiskenler.butterflyTriggerNotifier.value =
+                                if (math.Random().nextDouble() < 0.51) {
+                                  Degiskenler.birdMigrationTriggerNotifier.value =
                                       true;
                                 } else {
                                   Degiskenler.confettiTriggerNotifier.value =
@@ -140,7 +140,7 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                 ),
               ],
             ),
-            const IgnorePointer(child: ButterflyOverlay()),
+            const IgnorePointer(child: BirdMigrationOverlay()),
           ],
         );
       },

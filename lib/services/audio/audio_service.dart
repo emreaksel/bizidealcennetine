@@ -35,7 +35,7 @@ class AppAudioService {
         androidNotificationChannelId: 'com.ea.atesi_ask.audio',
         androidNotificationChannelName: 'Atesi Ask',
         androidNotificationOngoing: false,
-        androidStopForegroundOnPause: false,
+        androidStopForegroundOnPause: true,
       ),
     );
   }

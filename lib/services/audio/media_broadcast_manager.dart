@@ -5,6 +5,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'package:bizidealcennetine/services/log_service.dart';
+import 'package:bizidealcennetine/yaveran/ui_support.dart';
 // player burada global tanımlı
 import 'package:bizidealcennetine/services/Notifier.dart';
 import 'package:bizidealcennetine/services/audio/audio_service.dart';
@@ -154,41 +155,75 @@ class MediaBroadcastManager {
   }
 
   void _doBroadcast() {
-  _broadcastCount++;
-  _updateUIPlayButton();
+    _broadcastCount++;
+    _updateUIPlayButton();
 
-  final procState = _deriveProcessingState();
-  final actualPlaying = _player.state.playing;
+    final procState = _deriveProcessingState();
+    final actualPlaying = _player.state.playing;
 
-  // idle state'i ASLA engelleme — foreground servis bu state'e muhtaç
-  if (procState == audio_svc.AudioProcessingState.idle) {
-    _playbackState.add(_currentState().copyWith(
-      controls: [],
-      processingState: audio_svc.AudioProcessingState.idle,
-      playing: false,
-    ));
-    LogService().info("[Broadcast #$_broadcastCount] idle state yayınlandı.", tag: "BT");
-    return;
-  }
-
-  // Erken çıkış: sadece idle/completed/ready'de ve niyet=false + player=false ise
-  if (!_intendedPlaying && !actualPlaying) {
-    final isStillLoading =
-        procState == audio_svc.AudioProcessingState.loading ||
-        procState == audio_svc.AudioProcessingState.buffering;
-    if (!isStillLoading) {
+    // Geçiş sırasında player henüz metadata/alınma sürecindeyse ve niyet
+    // çalma yönündeyse, idle state yerine loading yayarak foreground
+    // servisin kapanmasını engelleriz.
+    if (procState == audio_svc.AudioProcessingState.idle &&
+        _intendedPlaying &&
+        !_isStopped &&
+        _mediaItem.value != null) {
       LogService().info(
-          "[Broadcast #$_broadcastCount] Oyuncu durdu + niyet=false → yayın atlandı.",
+          "[Broadcast #$_broadcastCount] idle geçişten loading'e çevrildi.",
+          tag: "BT");
+      // procState'i loading olarak düşerek bildirim kapanmasının önüne geç
+      _playbackState.add(_currentState().copyWith(
+        controls: [
+          audio_svc.MediaControl.skipToPrevious,
+          audio_svc.MediaControl.pause,
+          audio_svc.MediaControl.skipToNext,
+          audio_svc.MediaControl.stop,
+        ],
+        systemActions: const {
+          audio_svc.MediaAction.seek,
+          audio_svc.MediaAction.skipToNext,
+          audio_svc.MediaAction.skipToPrevious,
+        },
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: audio_svc.AudioProcessingState.loading,
+        playing: true,
+        updatePosition: _player.state.position,
+        bufferedPosition: _player.state.buffer,
+        speed: _player.state.rate,
+      ));
+      return;
+    }
+
+    // idle state'i ASLA engelleme — foreground servis bu state'e muhtaç
+    if (procState == audio_svc.AudioProcessingState.idle) {
+      _playbackState.add(_currentState().copyWith(
+        controls: [],
+        processingState: audio_svc.AudioProcessingState.idle,
+        playing: false,
+      ));
+      LogService().info("[Broadcast #$_broadcastCount] idle state yayınlandı.",
           tag: "BT");
       return;
     }
-  }
+
+    // Erken çıkış: sadece idle/completed/ready'de ve niyet=false + player=false ise
+    if (!_intendedPlaying && !actualPlaying) {
+      final isStillLoading =
+          procState == audio_svc.AudioProcessingState.loading ||
+              procState == audio_svc.AudioProcessingState.buffering;
+      if (!isStillLoading) {
+        LogService().info(
+            "[Broadcast #$_broadcastCount] Oyuncu durdu + niyet=false → yayın atlandı.",
+            tag: "BT");
+        return;
+      }
+    }
 
     // ── Niyet bayrağını uygula ────────────────────────────
     final bool broadcastPlaying;
-    if (_intendedPlaying &&
-        (procState == audio_svc.AudioProcessingState.loading ||
-            procState == audio_svc.AudioProcessingState.buffering)) {
+    if (_intendedPlaying) {
+      // Geçiş sırasında state ne olursa olsun playing=true yayınla
+      // androidStopForegroundOnPause:true bunu görünce bildirimi kapatmaz
       broadcastPlaying = true;
     } else {
       broadcastPlaying = actualPlaying;
@@ -289,6 +324,7 @@ class MediaBroadcastManager {
         tag: "BT");
     _mediaItem.add(item);
     _scheduleBroadcast(immediate: true);
+    UI_support.changeImageAndEpigram(); // Parça değiştiğinde görsel ve özdeyiş de değişsin
   }
 
   // ══════════════════════════════════════════════════════════

@@ -1,51 +1,12 @@
 import 'package:bizidealcennetine/services/Degiskenler.dart';
 import 'package:bizidealcennetine/yaveran/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:text_scroll/text_scroll.dart';
+import 'package:marquee/marquee.dart';
 
-class AkanYazi extends StatefulWidget {
+class AkanYazi extends StatelessWidget {
   final String? text;
-  AkanYazi([this.text]);
 
-  @override
-  _AkanYaziState createState() => _AkanYaziState();
-}
-
-class _AkanYaziState extends State<AkanYazi> {
-  String _lastText = "";
-  String _formattedText = "";
-  double _lastFontSize = 0;
-  double _lastScreenWidth = 0;
-
-  String _getFormattedText(
-      String text, double fontSize, double screenWidth, double screenHeight) {
-    if (text == _lastText &&
-        fontSize == _lastFontSize &&
-        screenWidth == _lastScreenWidth) {
-      return _formattedText;
-    }
-
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontSize: fontSize)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    double textWidth = painter.width;
-    int targetLength = (textWidth / 3.34).toInt();
-
-    if (screenWidth > textWidth) {
-      _formattedText = text + ' ' * (screenWidth / 3.9).toInt();
-    } else {
-      int spacesToAdd = targetLength - text.length;
-      _formattedText = text + ' ' * (spacesToAdd > 0 ? spacesToAdd : 0);
-    }
-
-    _lastText = text;
-    _lastFontSize = fontSize;
-    _lastScreenWidth = screenWidth;
-
-    return _formattedText;
-  }
+  const AkanYazi([this.text, Key? key]) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -76,16 +37,16 @@ class _AkanYaziState extends State<AkanYazi> {
           child: ValueListenableBuilder<String>(
             valueListenable: Degiskenler.currentEpigramNotifier,
             builder: (_, title, __) {
-              // PERFORMANS ÇÖZÜMÜ: RepaintBoundary eklendi
+              
               return RepaintBoundary(
                 child: ShaderMask(
                   shaderCallback: (Rect bounds) {
                     return const LinearGradient(
                       colors: [
-                        Colors.transparent,
+                        Colors.transparent, 
                         Colors.black,
                         Colors.black,
-                        Colors.transparent,
+                        Colors.transparent, 
                       ],
                       stops: [0.0, 0.17, 0.83, 1.0],
                       begin: Alignment.centerLeft,
@@ -93,25 +54,37 @@ class _AkanYaziState extends State<AkanYazi> {
                     ).createShader(bounds);
                   },
                   blendMode: BlendMode.dstIn,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: TextScroll(
-                      _getFormattedText(
-                          title, yaziBoyutu, screenWidth, screenHeight),
-                      mode: TextScrollMode.endless,
-                      // HIZ OPTİMİZASYONU: Alt-piksel titremesini azaltmak için hafifçe artırıldı
-                      velocity: const Velocity(pixelsPerSecond: Offset(60, 0)), 
-                      delayBefore: const Duration(milliseconds: 1000),
-                      numberOfReps: 99999,
-                      pauseBetween: const Duration(milliseconds: 100),
+                  
+                  child: SizedBox(
+                    height: yaziBoyutu * 1.5,
+                    child: Marquee(
+                      text: title.isNotEmpty ? title : " ",
                       style: TextStyle(
                         color: theme.textColor.withOpacity(0.9),
                         fontSize: yaziBoyutu,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.5,
                       ),
-                      textAlign: TextAlign.right,
-                      selectable: false,
+                      scrollAxis: Axis.horizontal,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      
+                      blankSpace: screenWidth, 
+                      
+                      // ========================================================
+                      // ÇÖZÜM: SAĞDAN PÜRÜZSÜZ GİRİŞ
+                      // ========================================================
+                      // İlk açılışta metnin tam ekran genişliği kadar 
+                      // sağdan başlamasını sağlar. Böylece metin boş ekrana 
+                      // pürüzsüzce sağ dışarıdan giriş yapar.
+                      startPadding: screenWidth, 
+                      // ========================================================
+                      
+                      velocity: 30.0, 
+                      pauseAfterRound: const Duration(milliseconds: 100),
+                      
+                      showFadingOnlyWhenScrolling: true,
+                      fadingEdgeStartFraction: 0.3,
+                      fadingEdgeEndFraction: 0.3,
                     ),
                   ),
                 ),

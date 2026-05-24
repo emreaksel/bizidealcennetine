@@ -7,6 +7,9 @@ class UI_support {
   // Son çağrılma zamanlarını tutan statik map
   static final Map<String, DateTime> _lastCallTimes = {};
 
+  // Uygulama başlangıç zamanı.
+  static final DateTime _appStartTime = DateTime.now();
+
   // Debounce süresi (milisaniye)
   static const int _debounceDurationMs = 700;
 
@@ -16,6 +19,14 @@ class UI_support {
     final lastCall = _lastCallTimes[functionName];
 
     if (lastCall == null) {
+      if (durationMs != null) {
+        final elapsedSinceLaunch = now.difference(_appStartTime).inMilliseconds;
+        if (elapsedSinceLaunch < durationMs) {
+          print(
+              "$functionName fonksiyonu ilk açılışta $elapsedSinceLaunch ms sonra çağrıldı, debounce nedeniyle atlandı (limit: ${durationMs}ms)");
+          return false;
+        }
+      }
       _lastCallTimes[functionName] = now;
       return true;
     }

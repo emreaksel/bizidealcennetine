@@ -157,11 +157,56 @@ class GenericAudioHandler extends BaseAudioHandler
       {bool playNow = true}) async {
     playlistManager.setMainList(data);
     Degiskenler.listeYuklendi = true;
+
     if (playNow) {
       await _playRandom();
     } else {
-      AppAudioService.playlistLoadingNotifier.value = false;
+      // Rastgele bir parça seç ve hazırla, ama çalma
+      final song = playlistManager.randomSong();
+      if (song != null) {
+        await _stageTrack(song);
+      } else {
+        AppAudioService.playlistLoadingNotifier.value = false;
+      }
     }
+  }
+
+  /// Parçayı player'a yükler ama başlatmaz.
+  /// playNow:false ile açılışta ilk parçayı hazır tutmak için kullanılır.
+  Future<void> _stageTrack(Map<String, dynamic> song) async {
+    AppAudioService.playlistLoadingNotifier.value = true;
+    final siraNo = int.tryParse(song['sira_no']?.toString() ?? '') ?? -1;
+    Degiskenler.parcaIndex = siraNo;
+
+    final mItem = MediaItem(
+      id: song['sira_no'].toString(),
+      album: Degiskenler.liste_adi ?? "",
+      title: song['parca_adi'] ?? "Bilinmeyen Parça",
+      artist: song['seslendiren'] ?? "Ben Olan Ben",
+      artUri: Uri.parse(
+          "${Degiskenler.kaynakYolu}medya/atesiask/${Degiskenler.currentImageNotifier.value}"),
+      extras: {'url': song['url']},
+    );
+
+    playlistManager.recordNavigation(song);
+
+    // mediaItem'ı güncelle — UI başlık/sanatçı görebilsin
+    mediaItem.add(mItem);
+    AppAudioService.currentSongTitleNotifier.value = mItem.title;
+    AppAudioService.currentSongSubTitleNotifier.value = mItem.artist ?? "";
+
+    // Player'a yükle ama play:false → hazır bekle
+    final sourceUrl = mItem.extras?['url'] as String? ?? mItem.id;
+    if (sourceUrl.isNotEmpty) {
+      try {
+        await player.open(media_kit.Media(sourceUrl), play: false);
+        _broadcastManager.refreshMediaItem(mItem);
+      } catch (e) {
+        LogService().warn("[stageTrack] player.open hatası: $e", tag: "Audio");
+      }
+    }
+
+    AppAudioService.playlistLoadingNotifier.value = false;
   }
 
   Future<void> playSong(int siraNo) async {
