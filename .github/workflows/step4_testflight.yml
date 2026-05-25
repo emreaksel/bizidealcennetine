@@ -91,27 +91,37 @@ jobs:
           echo "✅ Bağımlılıklar hazır."
 
       # ----------------------------------------------------------
-      # 5 & 6. Flutter Build ve Xcode Archive (Güncellenmiş)
+      # 5. Xcode İmzalama Ayarlarını Uygula (Sadece Runner)
+      # ----------------------------------------------------------
+      - name: "Runner Target İçin Manuel İmzalamayı Ayarla"
+        run: |
+          PROJ="ios/Runner.xcodeproj/project.pbxproj"
+          # Eski/otomatik imzalama ayarlarını temizliyoruz
+          sed -i '' '/PROVISIONING_PROFILE[^_]/d' "$PROJ"
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' "$PROJ"
+          sed -i '' '/CODE_SIGN_IDENTITY/d' "$PROJ"
+          sed -i '' '/CODE_SIGN_STYLE/d' "$PROJ"
+          sed -i '' '/ProvisioningStyle/d' "$PROJ"
+          
+          # Yalnızca ana hedefe (Runner) manuel imzalama ayarlarını enjekte ediyoruz
+          sed -i '' 's/SDKROOT = iphoneos;/SDKROOT = iphoneos;\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";\n\t\t\t\tCODE_SIGN_STYLE = Manual;\n\t\t\t\tDEVELOPMENT_TEAM = 76J8JGV82N;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "flutter_01";/g' "$PROJ"
+          echo "✅ Runner için manuel imzalama ayarlandı (Firebase/SPM etkilenmeyecek)."
+
+      # ----------------------------------------------------------
+      # 6. IPA Build Al
       # ----------------------------------------------------------
       - name: "IPA Build Al"
         run: |
           echo "🔨 Flutter iOS build başlıyor..."
-          # || true kaldırıldı: Hata varsa workflow burada dursun ve hatayı görelim.
-          # Sadece ios build alıyoruz, archive işlemini xcodebuild'e bırakıyoruz.
           flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
           
           echo "📦 xcodebuild ile archive..."
-          # xcpretty kaldırıldı: Xcode'un gerçek hata loglarını okuyabilmek için.
-          # İmzalama ayarlarını sed yerine doğrudan argüman olarak veriyoruz.
+          # DİKKAT: Global imzalama parametrelerini sildik! Artık ayarları doğrudan projeden (Adım 5'ten) okuyacak.
           xcodebuild archive \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -archivePath build/ios/Runner.xcarchive \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="flutter_01" \
-            DEVELOPMENT_TEAM=76J8JGV82N
+            -archivePath build/ios/Runner.xcarchive
 
           echo "📦 xcodebuild ile export..."
           xcodebuild -exportArchive \
