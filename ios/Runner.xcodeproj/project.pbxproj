@@ -478,7 +478,6 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 76J8JGV82N;
 				ENABLE_BITCODE = NO;
-				FLUTTER_ROOT = /Users/mixerdating/flutter;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Âteş-i AŞK";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
@@ -675,7 +674,6 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 76J8JGV82N;
 				ENABLE_BITCODE = NO;
-				FLUTTER_ROOT = /Users/mixerdating/flutter;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Âteş-i AŞK";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
@@ -711,7 +709,6 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 76J8JGV82N;
 				ENABLE_BITCODE = NO;
-				FLUTTER_ROOT = /Users/mixerdating/flutter;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Âteş-i AŞK";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
