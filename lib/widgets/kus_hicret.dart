@@ -8,84 +8,45 @@ import 'package:bizidealcennetine/services/Degiskenler.dart';
 //  GÖÇ ANIMASYONU AYARLARI
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Tetikleme ve spawn ayarları
 class _MigSpawnConfig {
   const _MigSpawnConfig();
-
-  /// Toplam dalga sayısı (arka arkaya kaç kez kuş grubu gelecek)
-  final int waveCount = 5;
-
-  /// Dalgalar arası bekleme süresi
-  final Duration waveDelay = const Duration(milliseconds: 7000);
-
-  /// Her tetiklemede/dalgada oluşturulacak koloni sayısı
-  final int colonyCount = 7;
-
-  /// Bir kolonideki minimum kuş sayısı
-  final int minBirdsPerColony = 1;
-
-  /// Bir kolonideki maksimum kuş sayısı
-  final int maxBirdsPerColony = 13;
-
-  /// En yakın koloninin z değeri (Kameraya en yakın mesafe)
-  final double nearestZ = -200.0;
-
-  /// En uzak koloninin z değeri (Ufuk çizgisine en yakın mesafe)
+  final int waveCount = 1;
+  final Duration waveDelay = const Duration(milliseconds: 4000);
+  final int colonyCount = 3;
+  final int minBirdsPerColony = 3;
+  final int maxBirdsPerColony = 17;
+  final double nearestZ = -50.0;
   final double farthestZ = 1200.0;
-
-  /// Spawn noktasının ekranın sağ kenarından ne kadar dışarıda olacağı (piksel)
   final double spawnXOffset = 320.0;
+
+  // Kolonilerin X ekseninde ne kadar dağılacağını kontrol eder.
+  // Dar koridor için 200–400, geniş için 800–1200 arası dene.
+  final double colonyXSpread = 400.0;
+
+  // V dizilimindeki kuşlar arası yatay boşluk.
+  // Sıkı formasyon için 10–14, gevşek için 20–28 arası dene.
+  final double wingXStep = 14.0;
 }
 
-/// Göç fiziği
 class _MigPhysicsConfig {
   const _MigPhysicsConfig();
-
-  /// Kolonilerin kendi seçeceği MİNİMUM hız
   final double minColonySpeed = 1.5;
-
-  /// Kolonilerin kendi seçeceği MAKSİMUM hız (Senin sevdiğin 2.9 limiti buraya taşındı, yakındakiler bunu asla geçemez)
   final double maxColonySpeed = 2.3;
-
-  /// Hız rastgele sapma miktarı (Kuşların koloni içindeki bireysel hız farkı ±)
   final double speedJitter = 0.6;
-
-  /// Koloni içi hizalanma kuvveti
   final double alignStrength = 0.07;
-
-  /// Koloniden ayrılmama kuvveti (hafif toplanma)
   final double cohereStrength = 0.03;
-
-  /// Birbirinden uzaklaşma mesafesi
   final double separationDist = 35.0;
-
-  /// Birbirinden uzaklaşma kuvveti
   final double separationStrength = 0.12;
-
-  /// Y ekseni hafif titreşim genliği (doğal dalga hareketi)
   final double yDriftAmplitude = 0.04;
-
-  /// YENİ: Fizik motorunun tavan hızı (Uzaktaki kuşların perspektifi telafi edebilmesi için geniş tutuldu)
   final double maxSpeed = 4.0;
-
-  /// Maksimum kuvvet
   final double maxForce = 0.10;
-
-  /// Projeksiyon odak uzaklığı
   final double focalLength = 600.0;
-
-  /// Ekranın üst/alt sınırından geçiş tamponu (tüm ekranı kullanırlar)
   final double verticalPadding = 0.97;
 }
 
-/// Görsel ayarlar
 class _MigVisualConfig {
   const _MigVisualConfig();
-
-  /// Kanat çırpma hızı
   final double wingFlapSpeed = 0.18;
-
-  /// Kanat genliği
   final double wingFlapAmplitude = 5.5;
 }
 
@@ -96,10 +57,8 @@ class MigrationConfig {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  TEKİL TETIKLEYICI
+//  3D VEKTÖR
 // ═══════════════════════════════════════════════════════════════════════════
-
-// ── 3D VEKTÖR ─────────────────────────────────────────────────────────────
 class _V3 {
   double x, y, z;
   _V3([this.x = 0, this.y = 0, this.z = 0]);
@@ -199,7 +158,6 @@ Offset? _proj(_V3 p) {
   return Offset(p.x * scale, -p.y * scale);
 }
 
-// ── KUŞ GEOMETRİSİ ─────────────────────────────────────
 const _mVerts = [
   [6.0, 0.0, 0.0],
   [-6.0, -2.0, 1.0],
@@ -217,7 +175,7 @@ const _mFaces = [
 ];
 
 // ══════════════════════════════════════════════════════════════════════════
-//  GÖÇ BOID
+//  GÖÇ BOID (HIZA DUYARLI DİNAMİK FİZİK VE ÇİFT YÖNLÜ)
 // ══════════════════════════════════════════════════════════════════════════
 class _MigBoid {
   final _V3 pos = _V3();
@@ -226,100 +184,132 @@ class _MigBoid {
 
   int colonyId = 0;
   double yPhase = 0.0;
-
-  // YENİ: Her kuşun hatırlayacağı orijinal "Göç İçgüdüsü" hızı
   double baseSpeed = 0.0;
 
-  bool get exitedLeft => pos.x < -2400;
+  // -1 ise Sağdan Sola, 1 ise Soldan Sağa
+  int direction = -1;
+
+  // Çıkış sınırı yöne göre belirlenir
+  bool get hasExited => direction == -1 ? pos.x < -2400 : pos.x > 2400;
+
+  // RAM DOSTU: Her karede yeniden yaratılmamak üzere sabitlenmiş geçici vektörler
+  static final _V3 _tAlign = _V3();
+  static final _V3 _tCohereC = _V3();
+  static final _V3 _tCohereD = _V3();
+  static final _V3 _tSepS = _V3();
+  static final _V3 _tSepR = _V3();
 
   void step(List<_MigBoid> allBoids, List<_MigBoid> myColony, double dtScale) {
     yPhase += 0.02 * dtScale;
     final yDrift = sin(yPhase) * MigrationConfig.physics.yDriftAmplitude;
-    accel.add(_V3(0, yDrift, 0));
+
+    accel.set(0, yDrift, 0);
+
+    // Hıza duyarlı sürü algoritması oranı
+    final double speedRatio = (baseSpeed / 2.0).clamp(0.5, 2.5);
+    final double dynamicSepDist =
+        MigrationConfig.physics.separationDist * speedRatio;
+    final double dynamicSepStr =
+        MigrationConfig.physics.separationStrength * speedRatio;
+    final double dynamicCohereStr =
+        MigrationConfig.physics.cohereStrength / speedRatio;
 
     if (myColony.length > 1) {
-      accel.add(_align(myColony));
-      accel.add(_cohere(myColony));
-    }
-    accel.add(_separate(allBoids));
+      _align(myColony, _tAlign);
+      accel.add(_tAlign);
 
-    accel.x = 0; // ← Hiçbir kuvvet X'e dokunamaz
+      _cohere(myColony, _tCohereD, dynamicCohereStr);
+      accel.add(_tCohereD);
+    }
+
+    _separate(allBoids, _tSepS, dynamicSepDist, dynamicSepStr);
+    accel.add(_tSepS);
+
+    accel.x = 0; // Hiçbir kuvvet X'e dokunamaz (İleri gidiş engellenemez)
+
+    // Kameraya (ekrana) çok yaklaşmayı engelleyen Z sınırı
+    const double minAllowedZ = -150.0;
+    if (pos.z < minAllowedZ) {
+      accel.z += (minAllowedZ - pos.z) * 0.005;
+    }
 
     accel.scale(dtScale);
     vel.add(accel);
 
-    // X'i limitsiz bırak, sadece Y/Z'yi sınırla
     final lateralSpeed = sqrt(vel.y * vel.y + vel.z * vel.z);
-    const maxLateral = 0.9;   
+    const maxLateral = 0.9;
     if (lateralSpeed > maxLateral) {
       final ratio = maxLateral / lateralSpeed;
       vel.y *= ratio;
       vel.z *= ratio;
     }
 
-    if (vel.x > -0.5) vel.x = -0.5;
+    // Hız limitlerini uçuş yönüne göre sınırla
+    if (direction == -1) {
+      if (vel.x > -0.5) vel.x = -0.5; // Sağa dönmesini engelle
+    } else {
+      if (vel.x < 0.5) vel.x = 0.5; // Sola dönmesini engelle
+    }
 
-    final scaledVel = vel.clone()..scale(dtScale);
-    pos.add(scaledVel);
+    pos.x += vel.x * dtScale;
+    pos.y += vel.y * dtScale;
+    pos.z += vel.z * dtScale;
+
     accel.set(0, 0, 0);
   }
 
-  _V3 _align(List<_MigBoid> colony) {
-    final sum = _V3();
+  void _align(List<_MigBoid> colony, _V3 out) {
+    out.set(0, 0, 0);
     int count = 0;
     for (final b in colony) {
       if (b == this) continue;
-      sum.add(b.vel);
+      out.add(b.vel);
       count++;
     }
     if (count > 0) {
-      sum.divSafe(count.toDouble());
-      sum.limit(MigrationConfig.physics.maxForce *
+      out.divSafe(count.toDouble());
+      out.limit(MigrationConfig.physics.maxForce *
           MigrationConfig.physics.alignStrength /
           0.1);
     }
-    return sum;
   }
 
-  _V3 _cohere(List<_MigBoid> colony) {
-    final center = _V3();
+  void _cohere(List<_MigBoid> colony, _V3 out, double dynamicStrength) {
+    _tCohereC.set(0, 0, 0);
     int count = 0;
     for (final b in colony) {
       if (b == this) continue;
-      center.add(b.pos);
+      _tCohereC.add(b.pos);
       count++;
     }
     if (count > 0) {
-      center.divSafe(count.toDouble());
-      final dir = _V3()..subOf(center, pos);
-      dir.scale(MigrationConfig.physics.cohereStrength);
-      dir.limit(MigrationConfig.physics.maxForce);
-      return dir;
+      _tCohereC.divSafe(count.toDouble());
+      out.subOf(_tCohereC, pos);
+      out.scale(dynamicStrength);
+      out.limit(MigrationConfig.physics.maxForce);
+    } else {
+      out.set(0, 0, 0);
     }
-    return _V3();
   }
 
-  _V3 _separate(List<_MigBoid> all) {
-    final sum = _V3();
-    final sepDistSq = MigrationConfig.physics.separationDist *
-        MigrationConfig.physics.separationDist;
+  void _separate(
+      List<_MigBoid> all, _V3 out, double dynamicDist, double dynamicStrength) {
+    out.set(0, 0, 0);
+    final sepDistSq = dynamicDist * dynamicDist;
 
     for (final b in all) {
       if (b == this) continue;
-
       final dSq = pos.dstSq(b.pos);
       if (dSq > 0 && dSq < sepDistSq) {
         final d = sqrt(dSq);
-        final rep = _V3()
-          ..subOf(pos, b.pos)
-          ..divSafe(d * d);
-        sum.add(rep);
+        _tSepR.subOf(pos, b.pos);
+        _tSepR.divSafe(d * d);
+        out.add(_tSepR);
       }
     }
-    sum.scale(MigrationConfig.physics.separationStrength);
-    sum.limit(MigrationConfig.physics.maxForce);
-    sum.x = 0; // ← BUNU EKLE: x momentumuna dokunma, sadece y/z'yi düzenle
-    return sum;
+    out.scale(dynamicStrength);
+    out.limit(MigrationConfig.physics.maxForce);
+    out.x = 0;
   }
 }
 
@@ -410,7 +400,7 @@ class _Colony {
 
   _Colony({required this.id, required this.baseZ, required this.color});
 
-  bool get allExited => boids.isNotEmpty && boids.every((b) => b.exitedLeft);
+  bool get allExited => boids.isNotEmpty && boids.every((b) => b.hasExited);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -428,12 +418,16 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
   late final Ticker _ticker;
   final List<_Colony> _colonies = [];
   final Random _rng = Random();
+
   Duration? _lastElapsed;
   bool _active = false;
 
   int _wavesSpawned = 0;
   Timer? _waveTimer;
   int _globalColonyId = 0;
+
+  // Bu tetiklemedeki genel yön. -1 (Sağdan Sola), 1 (Soldan Sağa)
+  int _currentDirection = -1;
 
   @override
   void initState() {
@@ -451,6 +445,9 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
     _wavesSpawned = 0;
     _globalColonyId = 0;
 
+    // Tetikleme anında yönü rastgele seç
+    _currentDirection = _rng.nextBool() ? 1 : -1;
+
     _spawnNextWave();
   }
 
@@ -466,7 +463,12 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
     final size = MediaQuery.of(context).size;
 
     final rightEdge = size.width / 2;
-    final spawnX = rightEdge + cfg.spawnXOffset;
+
+    // Yöne göre başlangıç (spawn) noktasını belirle.
+    // Sağdan Sola ise ekranın sağından, Soldan Sağa ise solundan başlar.
+    final spawnX = _currentDirection == 1
+        ? -rightEdge - cfg.spawnXOffset
+        : rightEdge + cfg.spawnXOffset;
 
     for (int ci = 0; ci < cfg.colonyCount; ci++) {
       final colonyZ =
@@ -479,7 +481,13 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
 
       final colony =
           _Colony(id: _globalColonyId++, baseZ: colonyZ, color: colonyColor);
-      final colonyXOffset = spawnX + _rng.nextDouble() * 1000.0;
+
+      // Kolonilerin X dağılımını cfg.colonyXSpread ile kontrol et
+      final colonyXOffset = spawnX +
+          _rng.nextDouble() *
+              cfg.colonyXSpread *
+              (_currentDirection == 1 ? -1 : 1);
+
       final birdCount = cfg.minBirdsPerColony +
           _rng.nextInt(cfg.maxBirdsPerColony - cfg.minBirdsPerColony + 1);
       final spreadFactor = 0.5 + _rng.nextDouble() * 1.0;
@@ -487,15 +495,12 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
       final randomColonyBaseSpeed = phy.minColonySpeed +
           _rng.nextDouble() * (phy.maxColonySpeed - phy.minColonySpeed);
 
-      // YENİ: Uzaktaki kuşlar perspektiften dolayı çok yavaş görünecekleri için, dünya hızlarını
-      // orantılı olarak artırıyoruz ki ekranda yakındakilerle aynı hissiyatı versinler.
       final zRatio = (colonyZ - cfg.nearestZ) / (cfg.farthestZ - cfg.nearestZ);
       final depthSpeedMult = 1.0 + (zRatio * 1.2);
-
       final finalColonySpeed = randomColonyBaseSpeed * depthSpeedMult;
 
       _spawnColonyBirds(colony, colonyXOffset, colonyZ, colonyColor, size,
-          spreadFactor, finalColonySpeed, birdCount);
+          spreadFactor, finalColonySpeed, birdCount, _currentDirection);
 
       _colonies.add(colony);
     }
@@ -516,16 +521,18 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
     double spread,
     double colonySpeed,
     int birdCount,
+    int direction,
   ) {
+    final cfg = MigrationConfig.spawn;
     final phyCfg = MigrationConfig.physics;
-
     final yRange = size.height * phyCfg.verticalPadding;
     final centerY = (_rng.nextDouble() - 0.5) * yRange;
-
     final colonyVerticalDrift = (_rng.nextDouble() - 0.5) * 1.2;
 
     for (int i = 0; i < birdCount; i++) {
-      final boid = _MigBoid()..colonyId = colony.id;
+      final boid = _MigBoid()
+        ..colonyId = colony.id
+        ..direction = direction;
 
       double vx = 0, vy = 0, vz = 0;
       if (i == 0) {
@@ -536,9 +543,14 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
         final wing = (i + 1) ~/ 2;
         final side = (i % 2 == 0) ? 1.0 : -1.0;
 
+        // V dizilimindeki arkadan gelen kuşları yöne göre liderin arkasına yerleştir.
+        // cfg.wingXStep ile yatay boşluk kontrol edilir.
+        final xOffsetMultiplier = direction == 1 ? -1.0 : 1.0;
         vx = spawnX +
-            (wing * 22.0 * spread) +
-            (_rng.nextDouble() * 14.0 * spread);
+            ((wing * cfg.wingXStep * spread) +
+                    (_rng.nextDouble() * 14.0 * spread)) *
+                xOffsetMultiplier;
+
         vy = centerY +
             (side * wing * 18.0 * spread) +
             (_rng.nextDouble() - 0.5) * 10.0;
@@ -549,12 +561,11 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
 
       final speed =
           colonySpeed + (_rng.nextDouble() - 0.5) * phyCfg.speedJitter;
-
-      // Kuş kendi atanmış hedef hızını hafızasına kazıyor
       boid.baseSpeed = speed;
 
+      // Başlangıç hız vektörünü x ekseni üzerinde yöne doğru belirle
       boid.vel.set(
-        -speed,
+        speed * direction,
         colonyVerticalDrift + (_rng.nextDouble() - 0.5) * 0.4,
         (_rng.nextDouble() - 0.5) * 0.2,
       );
@@ -587,7 +598,6 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
     if (dtScale > 3.0) dtScale = 3.0;
 
     final allBoids = _colonies.expand((c) => c.boids).toList(growable: false);
-
     bool anyActive = false;
 
     for (final colony in _colonies) {
@@ -596,9 +606,6 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
 
       for (int i = 0; i < colony.boids.length; i++) {
         final boid = colony.boids[i];
-
-        // Hız sabitleyici sayesinde artık "boid.exitedLeft" iptaline gerek kalmadı.
-        // Motor arkada çalışmaya devam etse de cruise control kuşları çekecek.
 
         boid.step(allBoids, colony.boids, dtScale);
 
@@ -651,8 +658,7 @@ class BirdMigrationOverlayState extends State<BirdMigrationOverlay>
 
     final allVisuals = _colonies.expand((c) {
       return Iterable.generate(c.boids.length, (i) {
-        // PERFORMANS KORUMASI: Fizik hesaplansa bile ekrandan çıkanları ekrana çizmeye (render) çalışmıyoruz.
-        if (c.boids[i].exitedLeft) return null;
+        if (c.boids[i].hasExited) return null;
         return c.visuals[i];
       }).whereType<_MigBirdVisual>();
     }).toList();

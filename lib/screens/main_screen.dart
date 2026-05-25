@@ -52,9 +52,9 @@ class _MyCustomLayoutState extends State<MyCustomLayout> {
                           children: [
                             GestureDetector(
                               onTapDown: (details) {
-                                if (math.Random().nextDouble() < 0.51) {
-                                  Degiskenler.birdMigrationTriggerNotifier.value =
-                                      true;
+                                if (math.Random().nextDouble() < 0.81) {
+                                  Degiskenler.birdMigrationTriggerNotifier
+                                      .value = true;
                                 } else {
                                   Degiskenler.confettiTriggerNotifier.value =
                                       ConfettiTriggerData(

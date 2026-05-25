@@ -151,21 +151,22 @@ class SettingsMenu extends StatelessWidget {
     );
   }
 
-  void _showContactForm(BuildContext context, AppTheme theme) {
+  void _showContactForm(BuildContext context, AppTheme theme,
+      {bool isSongProposalOnly = false}) {
     final _formKey = GlobalKey<FormState>();
     final TextEditingController nameController = TextEditingController();
     final TextEditingController emailController = TextEditingController();
     final TextEditingController messageController = TextEditingController();
-    String selectedReason = "Teşekkür";
+    String selectedReason = isSongProposalOnly ? "Parça Önerisi" : "Teşekkür";
 
     final List<String> reasons = [
       "Teşekkür",
       "Teknik Sorun",
-      "Parça Önerisi",
       "Diğer",
     ];
 
     bool isSending = false;
+    bool isSent = false;
 
     showModalBottomSheet(
       context: context,
@@ -186,157 +187,230 @@ class SettingsMenu extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: theme.textColor.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(2),
+                  if (isSent) ...[
+                    const SizedBox(height: 24),
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.textColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Icon(Icons.mail_outline_rounded,
-                          color: theme.accentColor, size: 28),
-                      const SizedBox(width: 12),
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+                    Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: theme.accentColor,
+                            size: 64,
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Kaynağa gönderildi',
+                            style: TextStyle(
+                              color: theme.textColor,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '✨',
+                            style: TextStyle(
+                              color: theme.textColor.withOpacity(0.55),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.textColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Icon(
+                            isSongProposalOnly
+                                ? Icons.remove_red_eye_outlined
+                                : Icons.mail_outline_rounded,
+                            color: theme.accentColor,
+                            size: 28),
+                        const SizedBox(width: 12),
+                        Text(
+                          isSongProposalOnly ? "Sende Gözler" : "İrtibat",
+                          style: TextStyle(
+                            color: theme.textColor,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (isSongProposalOnly) ...[
+                      const SizedBox(height: 6),
                       Text(
-                        "İrtibat",
+                        "✨ Parça önerileri için...",
                         style: TextStyle(
-                          color: theme.textColor,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          color: theme.textColor.withOpacity(0.55),
+                          fontSize: 13,
+                          height: 1.4,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 32),
-                  _buildLabel("Sebep", theme),
-                  DropdownButtonFormField<String>(
-                    value: selectedReason,
-                    dropdownColor: theme.cardColor,
-                    style: TextStyle(color: theme.textColor),
-                    decoration: _inputDecoration(theme),
-                    items: reasons.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (newValue) {
-                      setState(() {
-                        selectedReason = newValue!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  _buildLabel("İsim", theme),
-                  TextFormField(
-                    controller: nameController,
-                    style: TextStyle(color: theme.textColor),
-                    decoration: _inputDecoration(theme, hint: "İsim"),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Lütfen isim giriniz.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  _buildLabel("E-posta Adresiniz", theme),
-                  TextFormField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: TextStyle(color: theme.textColor),
-                    decoration:
-                        _inputDecoration(theme, hint: "ornek@email.com"),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Lütfen e-posta adresinizi girin.';
-                      }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                          .hasMatch(value)) {
-                        return 'Lütfen geçerli bir e-posta girin.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  _buildLabel("Mesajınız", theme),
-                  TextFormField(
-                    controller: messageController,
-                    maxLines: 5,
-                    style: TextStyle(color: theme.textColor),
-                    decoration: _inputDecoration(theme, hint: "Mesajınız..."),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Lütfen mesajınızı yazın.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.accentColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                    const SizedBox(height: 32),
+                    if (!isSongProposalOnly) ...[
+                      _buildLabel("Sebep", theme),
+                      DropdownButtonFormField<String>(
+                        value: selectedReason,
+                        dropdownColor: theme.cardColor,
+                        style: TextStyle(color: theme.textColor),
+                        decoration: _inputDecoration(theme),
+                        items: reasons.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) {
+                          setState(() {
+                            selectedReason = newValue!;
+                          });
+                        },
                       ),
-                      onPressed: isSending
-                          ? null
-                          : () async {
-                              if (_formKey.currentState!.validate()) {
-                                setState(() => isSending = true);
-
-                                bool success =
-                                    await _apiService.sendContactMessage(
-                                  name: nameController.text,
-                                  email: emailController.text,
-                                  message: messageController.text,
-                                  reason: selectedReason,
-                                );
-
-                                if (context.mounted) {
-                                  setState(() => isSending = false);
-                                  if (success) Navigator.pop(context);
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(success
-                                          ? 'Mesajınız başarıyla iletildi.'
-                                          : 'Mesaj gönderilirken bir hata oluştu.'),
-                                      backgroundColor: success
-                                          ? Colors.green
-                                          : Colors.redAccent,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                      child: isSending
-                          ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text(
-                              "Mesajı Gönder",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold),
-                            ),
+                      const SizedBox(height: 20),
+                    ],
+                    _buildLabel("İsim", theme),
+                    TextFormField(
+                      controller: nameController,
+                      style: TextStyle(color: theme.textColor),
+                      decoration: _inputDecoration(theme, hint: "İsim"),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Lütfen isim giriniz.';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    _buildLabel("E-posta Adresiniz", theme),
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: TextStyle(color: theme.textColor),
+                      decoration:
+                          _inputDecoration(theme, hint: "ornek@email.com"),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Lütfen e-posta adresinizi girin.';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
+                          return 'Lütfen geçerli bir e-posta girin.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildLabel(
+                        isSongProposalOnly ? "Parça Öneriniz" : "Mesajınız",
+                        theme),
+                    TextFormField(
+                      controller: messageController,
+                      maxLines: 5,
+                      style: TextStyle(color: theme.textColor),
+                      decoration: _inputDecoration(theme,
+                          hint: isSongProposalOnly
+                              ? "Önerdiğiniz parçanın adı veya mümkünse linki..."
+                              : "Mesajınız..."),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return isSongProposalOnly
+                              ? 'Lütfen parça önerinizi yazın.'
+                              : 'Lütfen mesajınızı yazın.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.accentColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: isSending
+                            ? null
+                            : () async {
+                                if (_formKey.currentState!.validate()) {
+                                  setState(() => isSending = true);
+
+                                  bool success =
+                                      await _apiService.sendContactMessage(
+                                    name: nameController.text,
+                                    email: emailController.text,
+                                    message: messageController.text,
+                                    reason: selectedReason,
+                                  );
+
+                                  if (context.mounted) {
+                                    if (success) {
+                                      nameController.clear();
+                                      emailController.clear();
+                                      messageController.clear();
+                                      setState(() {
+                                        isSending = false;
+                                        isSent = true;
+                                      });
+                                    } else {
+                                      setState(() => isSending = false);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Mesaj gönderilirken bir hata oluştu.'),
+                                          backgroundColor: Colors.redAccent,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                        child: isSending
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                "Mesajı Gönder",
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -635,10 +709,35 @@ class SettingsMenu extends StatelessWidget {
                   },
                 ),
 
+                // Contact Section
                 const SizedBox(height: 24),
-
+                GestureDetector(
+                  onTap: () => _showContactForm(context, theme),
+                  child: _buildSettingSection(
+                    theme,
+                    "İrtibat",
+                    Icons.mail_outline_rounded,
+                    null,
+                    trailing: Icon(Icons.arrow_forward_ios_rounded,
+                        color: theme.accentColor, size: 16),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                GestureDetector(
+                  onTap: () => _showContactForm(context, theme,
+                      isSongProposalOnly: true),
+                  child: _buildSettingSection(
+                    theme,
+                    "Sende Gözler",
+                    Icons.remove_red_eye_outlined,
+                    null,
+                    trailing: Icon(Icons.arrow_forward_ios_rounded,
+                        color: theme.accentColor, size: 16),
+                  ),
+                ),
                 // System Logs Section
                 if (Degiskenler.showLogs) ...[
+                  const SizedBox(height: 24),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -841,7 +940,7 @@ class SettingsMenu extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Contact Section
+
                 const SizedBox(height: 48),
                 Text(
                   "Âteş-i Aşk",
@@ -886,7 +985,7 @@ class SettingsMenu extends StatelessWidget {
 
   Widget _buildSettingSection(
       AppTheme theme, String title, IconData icon, Widget? content,
-      {Widget? trailing}) {
+      {Widget? trailing, String? subtitle}) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -900,15 +999,33 @@ class SettingsMenu extends StatelessWidget {
             children: [
               Icon(icon, color: theme.accentColor, size: 20),
               SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  color: theme.textColor.withOpacity(0.9),
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: theme.textColor.withOpacity(0.9),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: theme.textColor.withOpacity(0.5),
+                          fontSize: 11,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               if (trailing != null) ...[
-                Spacer(),
+                const SizedBox(width: 8),
                 trailing,
               ],
             ],

@@ -53,9 +53,18 @@ class GenericAudioHandler extends BaseAudioHandler
     // Listen for the current playing item to complete to handle skipToNext.
     player.stream.completed.listen((completed) {
       if (completed) {
-        skipToNext();
+        // Loop modunda aynı parçayı başa sar
+        if (playlistManager.isRepeatOne) {
+          player.seek(Duration.zero).then((_) => player.play());
+        } else {
+          skipToNext();
+        }
       }
     });
+
+    // ShuffleRepeat UI butonu ile PlaylistManager'ı senkronize et
+    AppAudioService.shuffleRepeatNotifier.addListener(_syncShuffleRepeatState);
+    _syncShuffleRepeatState(); // İlk değeri de uygula
 
     // ProgressNotifier senkronizasyonu
     player.stream.position.listen((pos) {
@@ -289,6 +298,17 @@ class GenericAudioHandler extends BaseAudioHandler
   Future<void> removeQueueItemAt(int index) async {
     final newQueue = queue.value..removeAt(index);
     queue.add(newQueue);
+  }
+
+  /// UI'daki shuffle/repeat buton durumunu PlaylistManager'a yansıtır.
+  void _syncShuffleRepeatState() {
+    final state = AppAudioService.shuffleRepeatNotifier.value;
+    playlistManager.isShuffleEnabled = state == ShuffleRepeatState.shuffle;
+    playlistManager.isRepeatOne = state == ShuffleRepeatState.repeat;
+    LogService().info(
+      "[AudioHandler] Shuffle/Repeat senkronize: shuffle=${playlistManager.isShuffleEnabled}, repeatOne=${playlistManager.isRepeatOne}",
+      tag: "Audio",
+    );
   }
 
   void _broadcastState() {
