@@ -129,11 +129,19 @@ class MediaBroadcastManager {
     _scheduleBroadcast(immediate: true);
   }
 
-  /// Kullanıcı manuel olarak durdurduğunda çağrılır (pause / stop).
+  /// Kullanıcı manuel olarak durdurduğunda çağrılır (pause).
   void setIntendedPaused() {
     _intendedPlaying = false;
-    _isStopped = true; // ← ekle
     LogService().info("[Broadcast] _intendedPlaying = false", tag: "BT");
+    if (!_disposed) _scheduleBroadcast(immediate: true);
+  }
+
+  /// Stop çağrıldığında
+  void setIntendedStopped() {
+    _intendedPlaying = false;
+    _isStopped = true;
+    LogService().info("[Broadcast] _intendedPlaying = false, _isStopped = true",
+        tag: "BT");
     if (!_disposed) _scheduleBroadcast(immediate: true);
   }
 
@@ -324,7 +332,8 @@ class MediaBroadcastManager {
         tag: "BT");
     _mediaItem.add(item);
     _scheduleBroadcast(immediate: true);
-    UI_support.changeImageAndEpigram(); // Parça değiştiğinde görsel ve özdeyiş de değişsin
+    UI_support
+        .changeImageAndEpigram(); // Parça değiştiğinde görsel ve özdeyiş de değişsin
   }
 
   // ══════════════════════════════════════════════════════════

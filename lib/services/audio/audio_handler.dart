@@ -19,6 +19,7 @@ final player = media_kit.Player();
 /// This is a generic and robust implementation designed to be reusable.
 class GenericAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
+  int _currentOpId = 0;
   final _queue = BehaviorSubject<List<MediaItem>>.seeded([]);
   late final StreamSubscription<void> _playerStateSubscription;
 
@@ -87,11 +88,28 @@ class GenericAudioHandler extends BaseAudioHandler
     logManager.loadPersistedLogs();
   }
 
-  @override
-  Future<void> play() => player.play();
+  DateTime? _lastSkipTime;
 
   @override
-  Future<void> pause() => player.pause();
+  Future<void> play() async {
+    _broadcastManager.setIntendedPlaying();
+    await player.play();
+  }
+
+  @override
+  Future<void> pause() async {
+    // Bluetooth araç teyplerinde skipToNext sonrası hemen pause gönderilmesi hatasını (1 sn çalıp durma) önlemek için:
+    if (_lastSkipTime != null &&
+        DateTime.now().difference(_lastSkipTime!) <
+            const Duration(milliseconds: 1500)) {
+      LogService().warn(
+          "BT sent pause right after skip, ignoring to prevent 1-sec pause bug.",
+          tag: "Audio");
+      return;
+    }
+    _broadcastManager.setIntendedPaused();
+    await player.pause();
+  }
 
   @override
   Future<void> seek(Duration position) => player.seek(position);
@@ -99,7 +117,7 @@ class GenericAudioHandler extends BaseAudioHandler
   @override
   Future<void> stop() async {
     // 1. Broadcast manager'a niyeti bildir → _isStopped=true → idle yayınlanır
-    _broadcastManager.setIntendedPaused();
+    _broadcastManager.setIntendedStopped();
 
     // 2. Oynatıcıyı durdur
     await player.stop();
@@ -122,12 +140,14 @@ class GenericAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToNext() async {
+    _lastSkipTime = DateTime.now();
     final nextSong = playlistManager.calculateNext();
     if (nextSong != null) await _playTrackInternal(nextSong);
   }
 
   @override
   Future<void> skipToPrevious() async {
+    _lastSkipTime = DateTime.now();
     final prevSong = playlistManager.calculatePrevious();
     if (prevSong != null) {
       playlistManager.rewindHistory();
@@ -167,7 +187,21 @@ class GenericAudioHandler extends BaseAudioHandler
     playlistManager.setMainList(data);
     Degiskenler.listeYuklendi = true;
 
-    if (playNow) {
+    // Hediye linki varsa, playNow true olsa bile hediye parçayı çal
+    if (Degiskenler.bekleyenHediyeLink != null &&
+        Degiskenler.bekleyenHediyeId != null) {
+      final link = Degiskenler.bekleyenHediyeLink!;
+      final id = Degiskenler.bekleyenHediyeId!;
+
+      // Çift tetiklenmeyi önlemek için temizle
+      Degiskenler.bekleyenHediyeLink = null;
+      Degiskenler.bekleyenHediyeId = null;
+
+      LogService().info(
+          "Açılışta bekleyen hediye bulundu ($link & $id), oynatılıyor...",
+          tag: "Audio");
+      await playGiftTrack(link, id);
+    } else if (playNow) {
       await _playRandom();
     } else {
       // Rastgele bir parça seç ve hazırla, ama çalma
@@ -183,6 +217,7 @@ class GenericAudioHandler extends BaseAudioHandler
   /// Parçayı player'a yükler ama başlatmaz.
   /// playNow:false ile açılışta ilk parçayı hazır tutmak için kullanılır.
   Future<void> _stageTrack(Map<String, dynamic> song) async {
+    final myOpId = ++_currentOpId;
     AppAudioService.playlistLoadingNotifier.value = true;
     final siraNo = int.tryParse(song['sira_no']?.toString() ?? '') ?? -1;
     Degiskenler.parcaIndex = siraNo;
@@ -209,12 +244,19 @@ class GenericAudioHandler extends BaseAudioHandler
     if (sourceUrl.isNotEmpty) {
       try {
         await player.open(media_kit.Media(sourceUrl), play: false);
-        _broadcastManager.refreshMediaItem(mItem);
       } catch (e) {
         LogService().warn("[stageTrack] player.open hatası: $e", tag: "Audio");
       }
     }
 
+    if (_currentOpId != myOpId) {
+      LogService().info("[stageTrack] Yeni operasyon devralındı, iptal edildi.",
+          tag: "Audio");
+      AppAudioService.playlistLoadingNotifier.value = false;
+      return;
+    }
+
+    _broadcastManager.refreshMediaItem(mItem);
     AppAudioService.playlistLoadingNotifier.value = false;
   }
 
@@ -245,6 +287,7 @@ class GenericAudioHandler extends BaseAudioHandler
   }
 
   Future<void> _playTrackInternal(Map<String, dynamic> song) async {
+    ++_currentOpId;
     AppAudioService.playlistLoadingNotifier.value = true;
     final siraNo = int.tryParse(song['sira_no']?.toString() ?? '') ?? -1;
     Degiskenler.parcaIndex = siraNo;

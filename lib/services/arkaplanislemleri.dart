@@ -10,6 +10,7 @@ import 'package:bizidealcennetine/services/audio/audio_service.dart'
     as app_audio;
 import 'package:bizidealcennetine/services/MusicApiService.dart';
 import 'package:bizidealcennetine/services/log_service.dart';
+import 'package:http/http.dart' as http;
 
 final appLinks = AppLinks();
 
@@ -23,6 +24,19 @@ Future<void> arkaplanIslemleri() async {
 
   // Burası 'complete()' komutu gelene kadar akışı durdurur (ama uygulamayı dondurmaz)
   await Degiskenler.linkKontrolCompleter.future;
+
+  // İnternet bağlantısı kontrolü
+  try {
+    await http
+        .get(Uri.parse('https://google.com'))
+        .timeout(const Duration(seconds: 3));
+  } catch (e) {
+    LogService()
+        .warn("İnternet bağlantısı yok, uyarı gösteriliyor.", tag: "Logic");
+    Degiskenler.currentNoticeNotifier.value =
+        "Lütfen internet bağlantınızı kontrol edin.";
+    Degiskenler.showDialogNotifier.value = true;
+  }
 
   // ✅ YENİ: Splash kapandığında loader'ın gözükmesi için bu notifier'ı aktif et
   app_audio.AppAudioService.playlistLoadingNotifier.value = true;
@@ -53,7 +67,7 @@ Future<void> arkaplanIslemleri() async {
 
         // 1. Menba İşlemleri
         if (isaretler.containsKey("menba")) {
-          processMenbaData(isaretler["menba"]);
+          await processMenbaData(isaretler["menba"]);
         }
 
         // 2. Fotoğraf İşlemleri
@@ -80,7 +94,7 @@ Future<void> arkaplanIslemleri() async {
   }
 }
 
-void processMenbaData(Map<String, dynamic> jsonData) {
+Future<void> processMenbaData(Map<String, dynamic> jsonData) async {
   int dinlemeListesiID = jsonData["aktifliste"]["dinlemeListesiID"];
   List<dynamic> dinlemeListeleri = jsonData["dinlemeListeleri"];
   for (var item in dinlemeListeleri) {
@@ -90,7 +104,7 @@ void processMenbaData(Map<String, dynamic> jsonData) {
     if (id == dinlemeListesiID) {
       Degiskenler.liste_adi = caption;
       Degiskenler.liste_link = link;
-      fetchData_jsonDinlemeListesi(
+      await fetchData_jsonDinlemeListesi(
           "${Degiskenler.kaynakYolu}kaynak/$link.json", link,
           playNow: false);
     }
