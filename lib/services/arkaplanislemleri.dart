@@ -170,21 +170,24 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    final initialLink = await appLinks.getInitialLink();
-    LogService()
-        .info("Açılış linki kontrol ediliyor: $initialLink", tag: "Link");
-
-    if (initialLink != null) {
-      handleLinkCallback(initialLink.toString());
-    }
-
-    // Yeni gelen linkleri dinlemeye devam et
+    // 1. Önce yeni gelen linkleri dinlemeye başla ki hiçbir intent kaybolmasın (özellikle onNewIntent ile gelenler)
     appLinks.uriLinkStream.listen((Uri? uri) {
       if (uri != null) {
-        LogService().info("Yeni link alındı: $uri", tag: "Link");
+        LogService().info("Yeni link alındı (Stream): $uri", tag: "Link");
         handleLinkCallback(uri.toString());
       }
     });
+
+    // 2. Ardından başlangıç/en son linki kontrol et.
+    // getLatestLink kullanıyoruz çünkü Android'de uygulama Recents'ten başlatıldığında
+    // getInitialLink eski (cached) intent'i getirebiliyor.
+    final latestLink = await appLinks.getLatestLink() ?? await appLinks.getInitialLink();
+    LogService()
+        .info("Açılış (En son) linki kontrol ediliyor: $latestLink", tag: "Link");
+
+    if (latestLink != null) {
+      handleLinkCallback(latestLink.toString());
+    }
   } catch (e) {
     LogService().error("Link yakalama hatası: $e", tag: "Link");
   } finally {
