@@ -12,7 +12,7 @@ class ConfettiTriggerData {
 class Degiskenler {
   static final Degiskenler _instance = Degiskenler._internal();
   int versionMenba = 0;
-  static var showLogs = true;
+  static var showLogs = false;
 
   static var hazirlaniyor = false;
   static var kaynakYolu =
