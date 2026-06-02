@@ -181,9 +181,10 @@ Future<void> initUniLinks(Function(String) handleLinkCallback) async {
     // 2. Ardından başlangıç/en son linki kontrol et.
     // getLatestLink kullanıyoruz çünkü Android'de uygulama Recents'ten başlatıldığında
     // getInitialLink eski (cached) intent'i getirebiliyor.
-    final latestLink = await appLinks.getLatestLink() ?? await appLinks.getInitialLink();
-    LogService()
-        .info("Açılış (En son) linki kontrol ediliyor: $latestLink", tag: "Link");
+    final latestLink =
+        await appLinks.getLatestLink() ?? await appLinks.getInitialLink();
+    LogService().info("Açılış (En son) linki kontrol ediliyor: $latestLink",
+        tag: "Link");
 
     if (latestLink != null) {
       handleLinkCallback(latestLink.toString());
