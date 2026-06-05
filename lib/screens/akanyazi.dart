@@ -72,7 +72,7 @@ class _AkanYaziScrollerState extends State<_AkanYaziScroller>
   bool _measured = false;
 
   // Pixels per second — adjusted for screen size
-  double _velocity = 27.0;
+  double _velocity = 24.0;
 
   @override
   void initState() {
@@ -111,7 +111,7 @@ class _AkanYaziScrollerState extends State<_AkanYaziScroller>
     _totalCycleDistance = _textWidth + _containerWidth;
 
     // Scale velocity: ~30px/s base on 360px screen
-    _velocity = (containerWidth / 360.0).clamp(0.8, 2.5) * 30.0;
+    //_velocity = (containerWidth / 360.0).clamp(0.8, 2.5) * 30.0;
 
     _measured = true;
 

@@ -759,7 +759,7 @@ class SettingsMenu extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                 ],
-
+                const SizedBox(height: 24),
                 // Theme Section
                 _buildSettingSection(
                   theme,

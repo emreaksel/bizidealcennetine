@@ -5,7 +5,7 @@ flutter run -d chrome --web-browser-flag "--disable-web-security"
 # android için 
 flutter build apk --release
 
-flutter build appbundle --release --build-name=1.0.34 --build-number=134
+flutter build appbundle --release --build-name=1.0.36 --build-number=136
 
 # github
 git reset --hard HEAD~1
